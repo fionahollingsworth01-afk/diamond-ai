@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { canonRules, characters, families } from './data/diamondData.js';
 
 const tabs = ['Ask Diamond', 'Characters', 'Families', 'Canon Rules'];
@@ -38,6 +38,38 @@ function answerQuestion(question) {
   return 'That has not been established in Diamond’s locked canon yet. Add the dossier or correction, and I will use that instead of making something up.';
 }
 
+function pickFemaleVoice(voices) {
+  const englishVoices = voices.filter((voice) => voice.lang?.toLowerCase().startsWith('en'));
+  const voicePool = englishVoices.length ? englishVoices : voices;
+  const femaleHints = [
+    'female',
+    'woman',
+    'zira',
+    'susan',
+    'samantha',
+    'victoria',
+    'karen',
+    'moira',
+    'tessa',
+    'serena',
+    'ava',
+    'allison',
+    'salli',
+    'joanna',
+    'kendra',
+    'kimberly',
+    'aria',
+    'jenny',
+    'michelle',
+  ];
+
+  return (
+    voicePool.find((voice) => femaleHints.some((hint) => voice.name.toLowerCase().includes(hint))) ||
+    voicePool.find((voice) => voice.lang?.toLowerCase().startsWith('en-us')) ||
+    voicePool[0]
+  );
+}
+
 function DiamondFace({ speaking }) {
   return (
     <section className={`diamondFace ${speaking ? 'speaking' : ''}`} aria-label="Diamond assistant face">
@@ -51,7 +83,7 @@ function DiamondFace({ speaking }) {
         <div className="noseGem" />
         <div className="mouth" />
       </div>
-      <p className="faceCaption">Diamond is online</p>
+      <p className="faceCaption">{speaking ? 'Diamond is speaking' : 'Diamond is online'}</p>
     </section>
   );
 }
@@ -59,8 +91,47 @@ function DiamondFace({ speaking }) {
 function App() {
   const [activeTab, setActiveTab] = useState('Ask Diamond');
   const [question, setQuestion] = useState('What horse did Jake ride?');
+  const [voices, setVoices] = useState([]);
+  const [speaking, setSpeaking] = useState(false);
   const answer = useMemo(() => answerQuestion(question), [question]);
-  const isSpeaking = activeTab === 'Ask Diamond' && question.trim().length > 0;
+  const diamondVoice = useMemo(() => pickFemaleVoice(voices), [voices]);
+
+  useEffect(() => {
+    if (!('speechSynthesis' in window)) {
+      return undefined;
+    }
+
+    const loadVoices = () => setVoices(window.speechSynthesis.getVoices());
+    loadVoices();
+    window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+
+    return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+  }, []);
+
+  function speakAnswer() {
+    if (!('speechSynthesis' in window)) {
+      alert('This browser does not support built-in voice yet. Try Edge or Chrome.');
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const speech = new SpeechSynthesisUtterance(answer);
+    speech.voice = diamondVoice || null;
+    speech.lang = diamondVoice?.lang || 'en-US';
+    speech.pitch = 1.12;
+    speech.rate = 0.92;
+    speech.onstart = () => setSpeaking(true);
+    speech.onend = () => setSpeaking(false);
+    speech.onerror = () => setSpeaking(false);
+    window.speechSynthesis.speak(speech);
+  }
+
+  function stopSpeaking() {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setSpeaking(false);
+  }
 
   return (
     <main className="appShell">
@@ -70,7 +141,7 @@ function App() {
           <h1>Diamond</h1>
           <p className="tagline">Five Oaks canon assistant, character encyclopedia, and continuity guard.</p>
         </div>
-        <DiamondFace speaking={isSpeaking} />
+        <DiamondFace speaking={speaking} />
         <div className="statusCard">
           <span>First Look</span>
           <strong>Canon-safe foundation online</strong>
@@ -101,6 +172,11 @@ function App() {
           <div className="answerBox">
             <span>Diamond says</span>
             <p>{answer}</p>
+          </div>
+          <div className="voiceControls">
+            <button type="button" onClick={speakAnswer}>Hear Diamond</button>
+            <button type="button" onClick={stopSpeaking}>Stop</button>
+            <p>{diamondVoice ? `Voice selected: ${diamondVoice.name}` : 'Female voice loading...'}</p>
           </div>
         </section>
       )}
