@@ -36,8 +36,8 @@ export const characters = [
     core: 'Choice born from expectation. She knows how people see her and uses it without shrinking.',
     weapons: ['Colt Single Action Army (.45)', 'Pocket Derringer', "Her pa's Winchester 1873", 'Small folding pocketknife'],
     horseEra: 'Outlaw era into early Five Oaks years',
-    horse: 'To be locked',
-    notes: "Her father's rifle is the one he taught her to shoot with. She does not betray the people who trust her."
+    horse: 'Lark',
+    notes: "Her father's rifle is the one he taught her to shoot with. Lark is her mare in the early Five Oaks books. She does not betray the people who trust her."
   },
   {
     name: 'Jace Callahan',
@@ -46,8 +46,8 @@ export const characters = [
     core: 'Pressure born from rejection. Authority presses, so he pushes back.',
     weapons: ['Colt Single Action Army (.45)', 'Winchester Model 1873', 'Working belt knife', 'Small hideout pistol'],
     horseEra: 'Outlaw era into early Five Oaks years',
-    horse: 'To be locked',
-    notes: 'Practical, well-used weapons. Favors readiness over polish.'
+    horse: 'Barney',
+    notes: 'Barney is Jace’s horse in the early Five Oaks books. Practical, well-used weapons. Favors readiness over polish.'
   }
 ];
 
@@ -56,6 +56,8 @@ export const canonRules = [
   'If canon files conflict, newer locked files and direct author corrections win.',
   'Track information by era. Outlaw-era horses are not automatically 1916 horses.',
   'By 1916, Grave, Ledger, Cinder, and the other outlaw-era horses are gone or deceased unless a later locked file says otherwise.',
+  'Krys rides Lark in the early Five Oaks books.',
+  'Jace rides Barney in the early Five Oaks books.',
   'When something is not established, say it is not established instead of guessing.',
   'Krys has a pocket Derringer and her pa’s rifle, the one he taught her to shoot with.',
   'Jace must be included with Matt, Jake, Luke, and Krys in core crew records.'
