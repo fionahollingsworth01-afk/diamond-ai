@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { canonRules, characters, families } from './data/diamondData.js';
 import diamondPortrait from '../DIAMOND.jpg';
 
-const tabs = ['Ask Diamond', 'Characters', 'Families', 'Canon Rules'];
+const tabs = [
+  { label: 'Ask Diamond', icon: '💬' },
+  { label: 'Characters', icon: '👥' },
+  { label: 'Families', icon: '🌳' },
+  { label: 'Canon Rules', icon: '⚖️' },
+];
 
 function answerQuestion(question) {
   const text = question.toLowerCase();
@@ -72,12 +77,25 @@ function pickFemaleVoice(voices) {
 }
 
 function DiamondFace({ speaking }) {
+  const frameStyle = {
+    position: 'relative',
+    width: '535px',
+    height: '565px',
+    borderRadius: '30px',
+    overflow: 'hidden',
+    border: '2px solid rgba(255,255,255,.24)',
+    boxShadow: speaking
+      ? 'inset 0 0 35px rgba(255,255,255,.11), 0 0 48px rgba(233,182,214,.5)'
+      : 'inset 0 0 35px rgba(255,255,255,.09), 0 0 38px rgba(233,182,214,.34)',
+    background: '#140f12',
+    filter: speaking ? 'brightness(1.06)' : 'none',
+  };
+
   return (
-    <section className={`diamondPortraitShell ${speaking ? 'speaking' : ''}`} aria-label="Diamond assistant portrait">
+    <section className="diamondPortraitShell" aria-label="Diamond assistant portrait">
       <div className="portraitGlow" />
-      <div className="portraitFrame">
+      <div style={frameStyle}>
         <img className="diamondPortrait" src={diamondPortrait} alt="Diamond" />
-        <div className="portraitBreath" />
       </div>
       <p className="faceCaption">{speaking ? 'Diamond is speaking' : 'Diamond is online'}</p>
     </section>
@@ -147,11 +165,11 @@ function App() {
       <nav className="tabs" aria-label="Diamond sections">
         {tabs.map((tab) => (
           <button
-            key={tab}
-            className={activeTab === tab ? 'active' : ''}
-            onClick={() => setActiveTab(tab)}
+            key={tab.label}
+            className={activeTab === tab.label ? 'active' : ''}
+            onClick={() => setActiveTab(tab.label)}
           >
-            {tab}
+            <span aria-hidden="true">{tab.icon}</span> {tab.label}
           </button>
         ))}
       </nav>
