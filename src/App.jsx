@@ -21,16 +21,29 @@ function questionTerms(question) {
   return question.toLowerCase().replace(/[^a-z0-9’'\s]/g, ' ').split(/\s+/).filter((word) => word.length > 2 && !stopWords.has(word));
 }
 
-function quickCanonAnswer(question) {
+function wantsExpandedAnswer(question) {
+  const text = question.toLowerCase().trim();
+  return text.startsWith('tell me about') || text.startsWith('tell me everything') || text.startsWith('who is') || text.startsWith('who was') || text.includes('show me') || text.includes('passage') || text.includes('scene') || text.includes('quote');
+}
+
+function directCanonAnswer(question) {
   const text = question.toLowerCase();
-  if (!text.trim()) return 'Ask me something from Five Oaks canon. I will answer from locked canon first, then search the loaded books.';
-  if (text.includes('krys') && text.includes('horse')) return 'Krys rides Lark in the early Five Oaks books.';
-  if (text.includes('jace') && text.includes('horse')) return 'Jace rides Barney in the early Five Oaks books.';
+  if (!text.trim()) return 'Ask me something from Five Oaks canon. I will answer direct questions directly, and I will expand only when you ask me to.';
+
+  if (text.includes('when') && text.includes('jake') && text.includes('marry')) return 'Jake married Krys in the late 1880s.';
+  if (text.includes('krys') && text.includes('horse')) return 'Krys rides Lark.';
+  if (text.includes('jace') && text.includes('horse')) return 'Jace rides Barney.';
   if (text.includes('jake') && text.includes('horse')) return 'Jake’s outlaw-era horse is Grave. By 1916, Grave is gone/deceased and Jake rides a later horse.';
-  if (text.includes('matt') && text.includes('horse')) return 'Matt’s outlaw-era horse is Ledger. By 1916, Ledger is gone/deceased unless a later locked file says otherwise.';
-  if (text.includes('luke') && text.includes('horse')) return 'Luke’s outlaw-era horse is Cinder. By 1916, Cinder is gone/deceased unless a later locked file says otherwise.';
-  if (text.includes('krys') && (text.includes('weapon') || text.includes('rifle') || text.includes('derringer'))) return "Krys carries a Colt Single Action Army, a pocket Derringer, and her pa’s Winchester 1873, the rifle he taught her to shoot with.";
+  if (text.includes('matt') && text.includes('horse')) return 'Matt’s outlaw-era horse is Ledger.';
+  if (text.includes('luke') && text.includes('horse')) return 'Luke’s outlaw-era horse is Cinder.';
+  if (text.includes('krys') && (text.includes('weapon') || text.includes('rifle') || text.includes('derringer'))) return "Krys carries a Colt Single Action Army, a pocket Derringer, and her pa’s Winchester 1873.";
   if (text.includes('jace') && (text.includes('weapon') || text.includes('pistol') || text.includes('rifle'))) return 'Jace carries a Colt Single Action Army, a Winchester Model 1873, a working belt knife, and a small hideout pistol.';
+
+  return '';
+}
+
+function expandedCanonAnswer(question) {
+  const text = question.toLowerCase();
   const found = characters.find((character) => text.includes(character.name.split(' ')[0].toLowerCase()));
   if (found) return `${found.name}: ${found.core} Weapons: ${found.weapons.join(', ')}. Horse record: ${found.horse} (${found.horseEra}). ${found.notes}`;
   return '';
@@ -55,12 +68,25 @@ function searchBooks(question, books) {
 }
 
 function buildBookAnswer(question, books) {
-  const canon = quickCanonAnswer(question);
+  const direct = directCanonAnswer(question);
+  const expanded = wantsExpandedAnswer(question);
   const matches = searchBooks(question, books);
-  if (canon && matches.length) return `${canon}\n\nBook support: ${matches[0].bookTitle}\n${matches[0].text}`;
-  if (canon) return canon;
+
+  if (direct && !expanded) return direct;
+
+  const characterAnswer = expandedCanonAnswer(question);
+  if (characterAnswer && expanded) {
+    if (matches.length) return `${characterAnswer}\n\nBook support: ${matches[0].bookTitle}\n${matches[0].text}`;
+    return characterAnswer;
+  }
+
+  if (direct && expanded) {
+    if (matches.length) return `${direct}\n\nBook support: ${matches[0].bookTitle}\n${matches[0].text}`;
+    return direct;
+  }
+
   if (matches.length) return `I found this in ${matches[0].bookTitle}:\n\n${matches[0].text}`;
-  return 'That has not been found in Diamond’s locked canon or the loaded books yet. Add a dossier or check the wording and I will search again.';
+  return 'I could not find that information in the current Five Oaks canon.';
 }
 
 function pickFemaleVoice(voices) {
@@ -82,7 +108,7 @@ function App() {
   const [speaking, setSpeaking] = useState(false);
   const loadedBooks = bookIndex.filter((book) => (book.sections || []).length > 0);
   const answer = useMemo(() => buildBookAnswer(question, loadedBooks), [question, loadedBooks]);
-  const matches = useMemo(() => searchBooks(question, loadedBooks), [question, loadedBooks]);
+  const matches = useMemo(() => wantsExpandedAnswer(question) ? searchBooks(question, loadedBooks) : [], [question, loadedBooks]);
   const diamondVoice = useMemo(() => pickFemaleVoice(voices), [voices]);
 
   useEffect(() => {
@@ -114,7 +140,7 @@ function App() {
       <section className="hero heroWithFace"><div><p className="eyebrow">The World of Five Oaks</p><h1>Diamond</h1><p className="tagline">Five Oaks canon assistant, character encyclopedia, and continuity guard.</p></div><DiamondFace speaking={speaking} /><div className="statusCard"><span>Library</span><strong>{loadedBooks.length} of {bookIndex.length} books indexed</strong></div></section>
       <nav className="tabs" aria-label="Diamond sections">{tabs.map((tab) => <button key={tab.label} className={activeTab === tab.label ? 'active' : ''} onClick={() => setActiveTab(tab.label)}><span aria-hidden="true">{tab.icon}</span> {tab.label}</button>)}</nav>
 
-      {activeTab === 'Ask Diamond' && <section className="panel askPanel"><h2>Ask Diamond</h2><p>{loadedBooks.length ? 'Books 1-12 are indexed. Ask from canon, characters, horses, places, or scenes.' : 'Diamond has not indexed the book library yet.'}</p><textarea value={question} onChange={(event) => setQuestion(event.target.value)} aria-label="Ask Diamond a Five Oaks question" /><div className="answerBox"><span>Diamond says</span><p style={{ whiteSpace: 'pre-wrap' }}>{answer}</p></div>{matches.length > 1 && <div className="gridPanel" style={{ marginTop: '18px' }}>{matches.slice(1, 4).map((match) => <article className="card" key={match.id}><h3>{match.bookTitle}</h3><p>{match.text}</p></article>)}</div>}<div className="voiceControls"><button type="button" onClick={speakAnswer}>Hear Diamond</button><button type="button" onClick={stopSpeaking}>Stop</button><p>{diamondVoice ? `Voice selected: ${diamondVoice.name}` : 'Female voice loading...'}</p></div></section>}
+      {activeTab === 'Ask Diamond' && <section className="panel askPanel"><h2>Ask Diamond</h2><p>{loadedBooks.length ? 'Books 1-12 are indexed. Direct questions get direct answers. Ask “tell me about” when you want the bigger file.' : 'Diamond has not indexed the book library yet.'}</p><textarea value={question} onChange={(event) => setQuestion(event.target.value)} aria-label="Ask Diamond a Five Oaks question" /><div className="answerBox"><span>Diamond says</span><p style={{ whiteSpace: 'pre-wrap' }}>{answer}</p></div>{matches.length > 1 && <div className="gridPanel" style={{ marginTop: '18px' }}>{matches.slice(1, 4).map((match) => <article className="card" key={match.id}><h3>{match.bookTitle}</h3><p>{match.text}</p></article>)}</div>}<div className="voiceControls"><button type="button" onClick={speakAnswer}>Hear Diamond</button><button type="button" onClick={stopSpeaking}>Stop</button><p>{diamondVoice ? `Voice selected: ${diamondVoice.name}` : 'Female voice loading...'}</p></div></section>}
 
       {activeTab === 'Books' && <section className="gridPanel">{bookIndex.map((book) => <article className="card" key={book.file}><h2>Book {book.number}</h2><h3>{book.title}</h3><p>{(book.sections || []).length ? `${book.sections.length} searchable sections indexed.` : 'Not indexed yet.'}</p></article>)}{bookIndexErrors.map((error) => <article className="card" key={error.file}><h3>Index warning</h3><p>{error.book}: {error.error}</p></article>)}</section>}
 
