@@ -1,0 +1,3 @@
+# Diamond
+
+The journey begins.
