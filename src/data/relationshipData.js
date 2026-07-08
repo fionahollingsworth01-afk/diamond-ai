@@ -2,37 +2,37 @@ export const relationships = [
   {
     people: ['krys', 'matt'],
     title: 'Krys Callahan and Matt Haskins',
-    direct: 'Krys and Matt are brother and sister by choice, not by blood. Their bond is one of the deepest in Five Oaks.',
+    direct: 'Krys and Matt are brother and sister by choice, not by blood. Their bond is deep because Matt helped give Krys safety, protection, trust, and family when she needed it most, and Krys became one of the few people who truly understands Matt’s grief, control, guilt, and spells. He gave her away when she married Jake, but their bond started long before that. They are not romantic and not blood. They are chosen family, built from survival, loyalty, trust, and years of standing beside each other when it mattered.',
     summary: 'Krys and Matt are special because they chose each other as family before Five Oaks was ever safe or settled. Matt helped bring Krys into the family she needed, protected her, taught her, believed her, and gave her away when she married Jake. Krys understands Matt’s grief, control, guilt, and spells better than most people ever could. Their bond is not romance and not blood. It is the kind of brother-sister loyalty built from rescue, trust, survival, and years of standing beside each other when it cost something.'
   },
   {
     people: ['luke', 'krys'],
     title: 'Luke Rawlins and Krys Callahan',
-    direct: 'Luke and Krys are family by choice. He is protective of her, and she trusts him as one of her own.',
+    direct: 'Luke and Krys are family by choice. Their bond is deep because Luke never treated Krys as someone weak or lesser. He accepted her, protected her, respected her sharp mind, and stayed loyal through the hard years. Krys trusts Luke because he earned that trust over and over. Their relationship is different from Krys and Matt’s, but it is still sibling-deep: teasing, protective, loyal, and chosen.',
     summary: 'Luke and Krys have a deep bond because Luke never treated Krys like Roger’s damaged daughter or like someone who needed to be made smaller. He accepted her as family, protected her, respected her sharp mind, and stayed loyal through the years when the others were building Five Oaks out of nothing. Krys trusts Luke because he earned it over and over. Their bond is different from Krys and Matt’s, but it is still sibling-deep: teasing, protective, steady, and chosen.'
   },
   {
     people: ['jake', 'krys'],
     title: 'Jake Kincaid and Krys Callahan',
-    direct: 'Jake and Krys are husband and wife. Their relationship is built on trust, protection, stubbornness, and the family they made together.',
+    direct: 'Jake and Krys are husband and wife. Their bond is rooted in trust, fierce love, stubborn loyalty, and the home they built together after surviving hard pasts.',
     summary: 'Jake and Krys work because they both know what it is to survive hard things and still choose love. Jake loves Krys fiercely, trusts her judgment, and respects her strength instead of trying to control it. Krys gives Jake a home, a family, and a kind of peace he never had before. They marry in the late 1880s and have two sons, Kai and Wes. Their marriage is not delicate. It is stubborn, loyal, physical, protective, and deeply rooted.'
   },
   {
     people: ['jake', 'matt'],
     title: 'Jake Kincaid and Matt Haskins',
-    direct: 'Jake and Matt are brothers by choice, partners, and two of the core foundations of Five Oaks.',
+    direct: 'Jake and Matt are brothers by choice. Their bond is built from survival, trust, partnership, and the kind of loyalty where neither man has to explain every word.',
     summary: 'Jake and Matt trust each other with their lives because they have already survived the worst together. Matt plans, Jake finishes what needs finishing, and both men understand violence, loyalty, silence, and responsibility in ways most people never will. Jake is one of the people Matt trusts completely, and Matt is one of the people Jake will follow without needing every word explained. Their bond is brotherhood, partnership, and old survival turned into family.'
   },
   {
     people: ['luke', 'matt'],
     title: 'Luke Rawlins and Matt Haskins',
-    direct: 'Luke and Matt are brothers by choice with a deep, long-tested bond.',
+    direct: 'Luke and Matt are brothers by choice. Luke can read Matt, push him, tease him, and stay with him in ways most people cannot because their loyalty has already been proven.',
     summary: 'Luke and Matt’s bond is deep because Luke can reach parts of Matt most people cannot touch. Luke reads Matt’s moods, pushes him when he needs pushed, and uses humor and loyalty to keep him from folding too far inward. Matt trusts Luke because Luke has proven he will stay. Their relationship carries teasing, history, protection, frustration, and love that does not need to be dressed up to be real.'
   },
   {
     people: ['jace', 'krys'],
     title: 'Jace Callahan and Krys Callahan',
-    direct: 'Jace and Krys are half siblings through Roger Callahan.',
+    direct: 'Jace and Krys are half siblings through Roger Callahan. Their bond is complicated by family history, pain, loyalty, and the work of learning how to be safe for each other.',
     summary: 'Jace and Krys are tied by blood through Roger, but their relationship is more complicated than a simple brother-sister bond. They share the damage Roger left behind, but they did not carry it the same way. Their relationship has pain, loyalty, anger, history, and the long work of learning how to be safe for each other. Jace is family, but with Krys that word has to be earned and protected, not assumed.'
   },
   {
@@ -44,25 +44,25 @@ export const relationships = [
   {
     people: ['jace', 'jake'],
     title: 'Jace Callahan and Jake Kincaid',
-    direct: 'Jace and Jake are family through Krys and through Five Oaks, with trust that had to be built over time.',
+    direct: 'Jace and Jake are family through Krys and Five Oaks, with trust that had to be built over time.',
     summary: 'Jace and Jake are both protective, stubborn, and dangerous when someone threatens their people. Their relationship is not simple, but they come to share responsibility for the same family and the same ranch. Jake is Krys’ husband, and Jace is Krys’ brother, so their bond is shaped by loyalty to her as much as loyalty to Five Oaks.'
   },
   {
     people: ['matt', 'jennifer'],
     title: 'Matt Haskins and Jennifer Callahan',
-    direct: 'Matt and Jennifer have a deeply important bond. Jennifer is one of Matt’s anchors in the later books.',
+    direct: 'Matt and Jennifer have a deeply important bond. Jennifer is one of Matt’s anchors in the later books, and he protects her fiercely.',
     summary: 'Jennifer matters deeply to Matt because she reaches him without fear and becomes one of the people who can steady him during his spells. Matt protects her fiercely, and Jennifer gives him a kind of trust that helps pull him back when his past closes in. Their bond is tender, protective, and central to Matt’s later healing.'
   },
   {
     people: ['eli', 'krys'],
     title: 'Eli Callahan and Krys Callahan',
-    direct: 'Eli and Krys have a close aunt-nephew bond shaped by loyalty, fear, and healing after Book 16.',
+    direct: 'Eli and Krys have a close aunt-nephew bond shaped by loyalty, fear, guilt, and healing after Book 16.',
     summary: 'Eli’s bond with Krys becomes especially important after the shooting and Whisper’s death. Krys survives, but Eli has to live with what happened and what he had to do. Krys becomes one of the people who helps him heal because she understands violence, guilt, family, and survival without turning away from him.'
   },
   {
     people: ['cole', 'tate'],
     title: 'Cole Callahan and Tate',
-    direct: 'Cole and Tate fall in love in Book 17. Their relationship is hidden, tender, and life-changing for both of them.',
+    direct: 'Cole and Tate fall in love in Book 17. Their relationship is hidden, tender, risky, and life-changing for both of them.',
     summary: 'Cole and Tate’s relationship begins with attraction, fear, and secrecy. Cole struggles with what he has been taught and what he feels, while Tate understands the cost of living honestly in their world. Their bond matters because loving each other forces both men to face danger, shame, courage, and the question of whether they can build a life that is true.'
   },
   {
