@@ -36,6 +36,10 @@ button, textarea {
   box-shadow: 0 22px 90px rgba(0, 0, 0, 0.35);
 }
 
+.heroWithFace {
+  align-items: center;
+}
+
 .eyebrow {
   margin: 0 0 10px;
   letter-spacing: 0.18em;
@@ -57,7 +61,7 @@ h1 {
 }
 
 .statusCard {
-  min-width: 240px;
+  min-width: 220px;
   display: grid;
   align-content: center;
   gap: 10px;
@@ -76,6 +80,116 @@ h1 {
 
 .statusCard strong {
   font-size: 1.35rem;
+}
+
+.diamondFace {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  min-width: 190px;
+}
+
+.diamondGlow {
+  position: absolute;
+  width: 210px;
+  height: 210px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(233, 182, 214, 0.35), rgba(183, 119, 167, 0.12) 46%, transparent 70%);
+  filter: blur(4px);
+  animation: pulseGlow 3.2s ease-in-out infinite;
+}
+
+.faceFrame {
+  position: relative;
+  width: 165px;
+  height: 165px;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-radius: 42% 42% 48% 48%;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.2), rgba(40, 15, 33, 0.58));
+  box-shadow: inset 0 0 35px rgba(255, 255, 255, 0.09), 0 0 32px rgba(233, 182, 214, 0.25);
+  overflow: hidden;
+}
+
+.faceFrame::before {
+  content: '';
+  position: absolute;
+  inset: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transform: rotate(45deg);
+}
+
+.browLine {
+  position: absolute;
+  top: 44px;
+  width: 94px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(246, 239, 229, 0.42);
+}
+
+.eyes {
+  position: absolute;
+  top: 61px;
+  display: flex;
+  gap: 24px;
+}
+
+.eye {
+  position: relative;
+  width: 34px;
+  height: 27px;
+  border-radius: 999px;
+  background: #f6efe5;
+  box-shadow: 0 0 18px rgba(246, 239, 229, 0.72);
+  animation: blink 5.4s infinite;
+  overflow: hidden;
+}
+
+.pupil {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #29131f;
+  animation: lookAround 6s ease-in-out infinite;
+}
+
+.noseGem {
+  position: absolute;
+  top: 94px;
+  width: 11px;
+  height: 11px;
+  transform: rotate(45deg);
+  background: rgba(233, 182, 214, 0.82);
+  box-shadow: 0 0 16px rgba(233, 182, 214, 0.75);
+}
+
+.mouth {
+  position: absolute;
+  bottom: 34px;
+  width: 52px;
+  height: 10px;
+  border-radius: 999px;
+  background: #f6efe5;
+  box-shadow: 0 0 14px rgba(246, 239, 229, 0.65);
+  transform-origin: center;
+}
+
+.speaking .mouth {
+  animation: talk 0.55s ease-in-out infinite;
+}
+
+.faceCaption {
+  margin: 0;
+  color: #e9b6d6;
+  font-size: 0.86rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .tabs {
@@ -153,6 +267,37 @@ h1 {
   display: grid;
   gap: 12px;
   padding-left: 22px;
+}
+
+@keyframes blink {
+  0%, 45%, 49%, 100% { transform: scaleY(1); }
+  47% { transform: scaleY(0.08); }
+}
+
+@keyframes lookAround {
+  0%, 20%, 100% { transform: translateX(0); }
+  35%, 48% { transform: translateX(5px); }
+  68%, 78% { transform: translateX(-5px); }
+}
+
+@keyframes talk {
+  0%, 100% { height: 8px; width: 48px; }
+  45% { height: 23px; width: 34px; border-radius: 45%; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.7; transform: scale(0.97); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+
+@media (max-width: 900px) {
+  .heroWithFace {
+    flex-direction: column;
+  }
+
+  .diamondFace {
+    order: 2;
+  }
 }
 
 @media (max-width: 760px) {
