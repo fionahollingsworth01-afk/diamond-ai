@@ -111,6 +111,7 @@ h1 {
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.2), rgba(40, 15, 33, 0.58));
   box-shadow: inset 0 0 35px rgba(255, 255, 255, 0.09), 0 0 32px rgba(233, 182, 214, 0.25);
   overflow: hidden;
+  animation: breathe 4.8s ease-in-out infinite;
 }
 
 .faceFrame::before {
@@ -180,8 +181,16 @@ h1 {
   transform-origin: center;
 }
 
+.speaking .faceFrame {
+  animation: breathe 2.2s ease-in-out infinite, speakLift 0.9s ease-in-out infinite;
+}
+
 .speaking .mouth {
-  animation: talk 0.55s ease-in-out infinite;
+  animation: talk 0.38s ease-in-out infinite;
+}
+
+.speaking .diamondGlow {
+  animation: pulseGlow 1.1s ease-in-out infinite;
 }
 
 .faceCaption {
@@ -199,7 +208,8 @@ h1 {
   margin: 24px 0;
 }
 
-.tabs button {
+.tabs button,
+.voiceControls button {
   border: 1px solid rgba(255, 255, 255, 0.16);
   color: #f6efe5;
   background: rgba(255, 255, 255, 0.08);
@@ -209,7 +219,8 @@ h1 {
 }
 
 .tabs button.active,
-.tabs button:hover {
+.tabs button:hover,
+.voiceControls button:hover {
   background: #e9b6d6;
   color: #160c12;
 }
@@ -247,6 +258,19 @@ h1 {
 .answerBox p {
   margin-bottom: 0;
   font-size: 1.08rem;
+}
+
+.voiceControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.voiceControls p {
+  margin: 0;
+  color: #d8c8d1;
 }
 
 .gridPanel {
@@ -288,6 +312,16 @@ h1 {
 @keyframes pulseGlow {
   0%, 100% { opacity: 0.7; transform: scale(0.97); }
   50% { opacity: 1; transform: scale(1.04); }
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(0.99); }
+  50% { transform: scale(1.025); }
+}
+
+@keyframes speakLift {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.18); }
 }
 
 @media (max-width: 900px) {
