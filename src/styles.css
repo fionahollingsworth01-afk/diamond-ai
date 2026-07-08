@@ -87,13 +87,13 @@ h1 {
   display: grid;
   justify-items: center;
   gap: 10px;
-  min-width: 220px;
+  min-width: 290px;
 }
 
 .portraitGlow {
   position: absolute;
-  width: 230px;
-  height: 230px;
+  width: 300px;
+  height: 300px;
   border-radius: 999px;
   background: radial-gradient(circle, rgba(233, 182, 214, 0.45), rgba(183, 119, 167, 0.16) 46%, transparent 70%);
   filter: blur(8px);
@@ -102,14 +102,14 @@ h1 {
 
 .portraitFrame {
   position: relative;
-  width: 188px;
-  height: 188px;
-  border-radius: 32px;
+  width: 270px;
+  height: 220px;
+  border-radius: 28px;
   overflow: hidden;
   border: 2px solid rgba(255, 255, 255, 0.22);
   box-shadow: inset 0 0 35px rgba(255, 255, 255, 0.09), 0 0 32px rgba(233, 182, 214, 0.25);
   background: rgba(0, 0, 0, 0.28);
-  animation: portraitBreathe 4.8s ease-in-out infinite;
+  animation: portraitBreathe 6s ease-in-out infinite;
 }
 
 .diamondPortrait {
@@ -118,64 +118,29 @@ h1 {
   object-fit: cover;
   object-position: center top;
   display: block;
-  transform: scale(1.05);
-  animation: portraitAlive 7s ease-in-out infinite;
+  transform: scale(1.02);
+  animation: portraitAlive 9s ease-in-out infinite;
 }
 
 .portraitBreath {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at center, transparent 52%, rgba(233, 182, 214, 0.18));
-  opacity: 0.45;
+  background: radial-gradient(circle at center, transparent 58%, rgba(233, 182, 214, 0.16));
+  opacity: 0.35;
   pointer-events: none;
-  animation: breathLight 4.8s ease-in-out infinite;
-}
-
-.portraitBlink {
-  position: absolute;
-  top: 41%;
-  width: 18%;
-  height: 3%;
-  border-radius: 999px;
-  background: rgba(18, 9, 14, 0.9);
-  opacity: 0;
-  pointer-events: none;
-  animation: portraitBlink 5.2s infinite;
-}
-
-.leftBlink {
-  left: 31%;
-}
-
-.rightBlink {
-  right: 31%;
-}
-
-.portraitMouth {
-  position: absolute;
-  left: 50%;
-  bottom: 28%;
-  width: 22%;
-  height: 2%;
-  transform: translateX(-50%);
-  border-radius: 999px;
-  background: rgba(20, 7, 12, 0.68);
-  opacity: 0;
-  box-shadow: 0 0 10px rgba(246, 239, 229, 0.34);
-  pointer-events: none;
+  animation: breathLight 6s ease-in-out infinite;
 }
 
 .speaking .portraitFrame {
-  animation: portraitBreathe 2.2s ease-in-out infinite, speakLift 0.9s ease-in-out infinite;
+  animation: portraitBreathe 3s ease-in-out infinite, speakLift 1.2s ease-in-out infinite;
+}
+
+.speaking .diamondPortrait {
+  animation: portraitAlive 3s ease-in-out infinite;
 }
 
 .speaking .portraitGlow {
-  animation: pulseGlow 1.1s ease-in-out infinite;
-}
-
-.speaking .portraitMouth {
-  opacity: 1;
-  animation: portraitTalk 0.34s ease-in-out infinite;
+  animation: pulseGlow 1.4s ease-in-out infinite;
 }
 
 .faceCaption {
@@ -284,33 +249,23 @@ h1 {
 }
 
 @keyframes portraitBreathe {
-  0%, 100% { transform: scale(0.99); }
-  50% { transform: scale(1.025); }
+  0%, 100% { transform: scale(0.995); }
+  50% { transform: scale(1.012); }
 }
 
 @keyframes portraitAlive {
-  0%, 100% { transform: scale(1.05) translateY(0); }
-  50% { transform: scale(1.075) translateY(-2px); }
+  0%, 100% { transform: scale(1.02) translateY(0); }
+  50% { transform: scale(1.035) translateY(-1px); }
 }
 
 @keyframes breathLight {
-  0%, 100% { opacity: 0.28; }
-  50% { opacity: 0.58; }
-}
-
-@keyframes portraitBlink {
-  0%, 42%, 46%, 100% { opacity: 0; transform: scaleY(0.3); }
-  44% { opacity: 0.9; transform: scaleY(1); }
-}
-
-@keyframes portraitTalk {
-  0%, 100% { height: 2%; width: 18%; border-radius: 999px; }
-  45% { height: 8%; width: 14%; border-radius: 45%; }
+  0%, 100% { opacity: 0.24; }
+  50% { opacity: 0.46; }
 }
 
 @keyframes speakLift {
   0%, 100% { filter: brightness(1); }
-  50% { filter: brightness(1.18); }
+  50% { filter: brightness(1.12); }
 }
 
 @media (max-width: 900px) {
