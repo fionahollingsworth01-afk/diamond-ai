@@ -1,22 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import mammoth from 'mammoth';
 import { canonRules, characters, families } from './data/diamondData.js';
+import { bookIndex, bookIndexErrors } from './data/bookIndex.js';
 import diamondPortrait from '../DIAMOND.jpg';
-
-const bookFiles = [
-  { number: 1, title: 'Before They Were Brothers', file: 'BEFORE THEY WERE BROTHERS FULL BOOK.docx' },
-  { number: 2, title: 'Brothers by the Gun', file: 'BROTHERS BY THE GUN FULL BOOK.docx' },
-  { number: 3, title: 'By the Gun No More', file: 'BY THE GUN NO MORE FULL BOOK.docx' },
-  { number: 4, title: 'Built for More', file: 'BUILT FOR MORE FULL BOOK.docx' },
-  { number: 5, title: 'The Long Way Forward', file: 'THE LONG WAY FORWARD FULL BOOK.docx' },
-  { number: 6, title: 'The Missing Man', file: 'THE MISSING MAN FULL BOOK.docx' },
-  { number: 7, title: 'What the Land Holds', file: 'WHAT THE LAND HOLDS FULL BOOK.docx' },
-  { number: 8, title: 'The Long Ride West', file: 'THE LONG RIDE WEST FULL BOOK.docx' },
-  { number: 9, title: 'After the Silence', file: 'AFTER THE SILENCE FULL BOOK.docx' },
-  { number: 10, title: 'The Weight of a Name', file: 'THE WEIGHT OF A NAME FULL BOOK.docx' },
-  { number: 11, title: 'A Bigger World', file: 'A BIGGER WORLD FULL BOOK.docx' },
-  { number: 12, title: 'What We Keep', file: 'WHAT WE KEEP FULL BOOK.docx' },
-];
 
 const tabs = [
   { label: 'Ask Diamond', icon: '💬' },
@@ -58,12 +43,10 @@ function searchBooks(question, books) {
   const results = [];
 
   for (const book of books) {
-    for (const part of book.parts) {
+    for (const part of book.sections || []) {
       const lower = part.text.toLowerCase();
       let score = lower.includes(phrase) ? 25 : 0;
-      for (const term of terms) {
-        if (lower.includes(term)) score += 4;
-      }
+      for (const term of terms) if (lower.includes(term)) score += 4;
       if (score > 0) results.push({ ...part, bookTitle: book.title, bookNumber: book.number, score });
     }
   }
@@ -71,13 +54,12 @@ function searchBooks(question, books) {
   return results.sort((a, b) => b.score - a.score).slice(0, 5);
 }
 
-function buildBookAnswer(question, books, loadingStatus) {
+function buildBookAnswer(question, books) {
   const canon = quickCanonAnswer(question);
   const matches = searchBooks(question, books);
   if (canon && matches.length) return `${canon}\n\nBook support: ${matches[0].bookTitle}\n${matches[0].text}`;
   if (canon) return canon;
   if (matches.length) return `I found this in ${matches[0].bookTitle}:\n\n${matches[0].text}`;
-  if (loadingStatus === 'loading') return 'I am still loading the books. Try again in a few seconds.';
   return 'That has not been found in Diamond’s locked canon or the loaded books yet. Add a dossier or check the wording and I will search again.';
 }
 
@@ -98,41 +80,10 @@ function App() {
   const [question, setQuestion] = useState('What horse did Krys ride?');
   const [voices, setVoices] = useState([]);
   const [speaking, setSpeaking] = useState(false);
-  const [books, setBooks] = useState([]);
-  const [bookStatus, setBookStatus] = useState('loading');
-  const [bookErrors, setBookErrors] = useState([]);
-  const answer = useMemo(() => buildBookAnswer(question, books, bookStatus), [question, books, bookStatus]);
-  const matches = useMemo(() => searchBooks(question, books), [question, books]);
+  const loadedBooks = bookIndex.filter((book) => (book.sections || []).length > 0);
+  const answer = useMemo(() => buildBookAnswer(question, loadedBooks), [question, loadedBooks]);
+  const matches = useMemo(() => searchBooks(question, loadedBooks), [question, loadedBooks]);
   const diamondVoice = useMemo(() => pickFemaleVoice(voices), [voices]);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function loadBooks() {
-      setBookStatus('loading');
-      const loaded = [];
-      const errors = [];
-      for (const book of bookFiles) {
-        try {
-          const path = `${import.meta.env.BASE_URL}books/${encodeURIComponent(book.file)}`;
-          const response = await fetch(path);
-          if (!response.ok) throw new Error(`Could not fetch ${book.file}`);
-          const buffer = await response.arrayBuffer();
-          const extracted = await mammoth.extractRawText({ arrayBuffer: buffer });
-          const pieces = extracted.value.split(/\n{2,}/).map(cleanText).filter((line) => line.length > 80).slice(0, 1200);
-          loaded.push({ ...book, parts: pieces.map((text, index) => ({ id: `${book.number}-${index}`, text })) });
-        } catch (error) {
-          errors.push(`${book.title}: ${error.message}`);
-        }
-      }
-      if (!cancelled) {
-        setBooks(loaded);
-        setBookErrors(errors);
-        setBookStatus(errors.length ? 'partial' : 'ready');
-      }
-    }
-    loadBooks();
-    return () => { cancelled = true; };
-  }, []);
 
   useEffect(() => {
     if (!('speechSynthesis' in window)) return undefined;
@@ -160,12 +111,12 @@ function App() {
 
   return (
     <main className="appShell">
-      <section className="hero heroWithFace"><div><p className="eyebrow">The World of Five Oaks</p><h1>Diamond</h1><p className="tagline">Five Oaks canon assistant, character encyclopedia, and continuity guard.</p></div><DiamondFace speaking={speaking} /><div className="statusCard"><span>Library</span><strong>{books.length} of {bookFiles.length} books loaded</strong></div></section>
+      <section className="hero heroWithFace"><div><p className="eyebrow">The World of Five Oaks</p><h1>Diamond</h1><p className="tagline">Five Oaks canon assistant, character encyclopedia, and continuity guard.</p></div><DiamondFace speaking={speaking} /><div className="statusCard"><span>Library</span><strong>{loadedBooks.length} of {bookIndex.length} books indexed</strong></div></section>
       <nav className="tabs" aria-label="Diamond sections">{tabs.map((tab) => <button key={tab.label} className={activeTab === tab.label ? 'active' : ''} onClick={() => setActiveTab(tab.label)}><span aria-hidden="true">{tab.icon}</span> {tab.label}</button>)}</nav>
 
-      {activeTab === 'Ask Diamond' && <section className="panel askPanel"><h2>Ask Diamond</h2><p>{bookStatus === 'ready' ? 'Books 1-12 are loaded. Ask from canon, characters, horses, places, or scenes.' : 'Diamond is loading the book library.'}</p><textarea value={question} onChange={(event) => setQuestion(event.target.value)} aria-label="Ask Diamond a Five Oaks question" /><div className="answerBox"><span>Diamond says</span><p style={{ whiteSpace: 'pre-wrap' }}>{answer}</p></div>{matches.length > 1 && <div className="gridPanel" style={{ marginTop: '18px' }}>{matches.slice(1, 4).map((match) => <article className="card" key={match.id}><h3>{match.bookTitle}</h3><p>{match.text}</p></article>)}</div>}<div className="voiceControls"><button type="button" onClick={speakAnswer}>Hear Diamond</button><button type="button" onClick={stopSpeaking}>Stop</button><p>{diamondVoice ? `Voice selected: ${diamondVoice.name}` : 'Female voice loading...'}</p></div></section>}
+      {activeTab === 'Ask Diamond' && <section className="panel askPanel"><h2>Ask Diamond</h2><p>{loadedBooks.length ? 'Books 1-12 are indexed. Ask from canon, characters, horses, places, or scenes.' : 'Diamond has not indexed the book library yet.'}</p><textarea value={question} onChange={(event) => setQuestion(event.target.value)} aria-label="Ask Diamond a Five Oaks question" /><div className="answerBox"><span>Diamond says</span><p style={{ whiteSpace: 'pre-wrap' }}>{answer}</p></div>{matches.length > 1 && <div className="gridPanel" style={{ marginTop: '18px' }}>{matches.slice(1, 4).map((match) => <article className="card" key={match.id}><h3>{match.bookTitle}</h3><p>{match.text}</p></article>)}</div>}<div className="voiceControls"><button type="button" onClick={speakAnswer}>Hear Diamond</button><button type="button" onClick={stopSpeaking}>Stop</button><p>{diamondVoice ? `Voice selected: ${diamondVoice.name}` : 'Female voice loading...'}</p></div></section>}
 
-      {activeTab === 'Books' && <section className="gridPanel">{bookFiles.map((book) => { const loaded = books.find((item) => item.number === book.number); return <article className="card" key={book.file}><h2>Book {book.number}</h2><h3>{book.title}</h3><p>{loaded ? `${loaded.parts.length} searchable sections loaded.` : 'Not loaded yet.'}</p></article>; })}{bookErrors.map((error) => <article className="card" key={error}><h3>Load warning</h3><p>{error}</p></article>)}</section>}
+      {activeTab === 'Books' && <section className="gridPanel">{bookIndex.map((book) => <article className="card" key={book.file}><h2>Book {book.number}</h2><h3>{book.title}</h3><p>{(book.sections || []).length ? `${book.sections.length} searchable sections indexed.` : 'Not indexed yet.'}</p></article>)}{bookIndexErrors.map((error) => <article className="card" key={error.file}><h3>Index warning</h3><p>{error.book}: {error.error}</p></article>)}</section>}
 
       {activeTab === 'Characters' && <section className="gridPanel">{characters.map((character) => <article className="card" key={character.name}><h2>{character.name}</h2><p className="muted">{character.givenName}</p><h3>{character.role}</h3><p>{character.core}</p><p><strong>Horse:</strong> {character.horse} — {character.horseEra}</p><p><strong>Weapons:</strong> {character.weapons.join(', ')}</p></article>)}</section>}
       {activeTab === 'Families' && <section className="gridPanel">{families.map((item) => <article className="card" key={item.family}><h2>{item.family}</h2><p>{item.notes}</p></article>)}</section>}
