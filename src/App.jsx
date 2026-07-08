@@ -78,9 +78,6 @@ function DiamondFace({ speaking }) {
       <div className="portraitFrame">
         <img className="diamondPortrait" src={diamondPortrait} alt="Diamond" />
         <div className="portraitBreath" />
-        <div className="portraitBlink leftBlink" />
-        <div className="portraitBlink rightBlink" />
-        <div className="portraitMouth" />
       </div>
       <p className="faceCaption">{speaking ? 'Diamond is speaking' : 'Diamond is online'}</p>
     </section>
