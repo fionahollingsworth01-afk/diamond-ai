@@ -38,19 +38,39 @@ function answerQuestion(question) {
   return 'That has not been established in Diamond’s locked canon yet. Add the dossier or correction, and I will use that instead of making something up.';
 }
 
+function DiamondFace({ speaking }) {
+  return (
+    <section className={`diamondFace ${speaking ? 'speaking' : ''}`} aria-label="Diamond assistant face">
+      <div className="diamondGlow" />
+      <div className="faceFrame">
+        <div className="browLine" />
+        <div className="eyes">
+          <span className="eye"><span className="pupil" /></span>
+          <span className="eye"><span className="pupil" /></span>
+        </div>
+        <div className="noseGem" />
+        <div className="mouth" />
+      </div>
+      <p className="faceCaption">Diamond is online</p>
+    </section>
+  );
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState('Ask Diamond');
   const [question, setQuestion] = useState('What horse did Jake ride?');
   const answer = useMemo(() => answerQuestion(question), [question]);
+  const isSpeaking = activeTab === 'Ask Diamond' && question.trim().length > 0;
 
   return (
     <main className="appShell">
-      <section className="hero">
+      <section className="hero heroWithFace">
         <div>
           <p className="eyebrow">The World of Five Oaks</p>
           <h1>Diamond</h1>
           <p className="tagline">Five Oaks canon assistant, character encyclopedia, and continuity guard.</p>
         </div>
+        <DiamondFace speaking={isSpeaking} />
         <div className="statusCard">
           <span>First Look</span>
           <strong>Canon-safe foundation online</strong>
