@@ -16,21 +16,26 @@ const tabs = [
 const stopWords = new Set(['what', 'was', 'were', 'the', 'did', 'does', 'who', 'where', 'when', 'how', 'and', 'for', 'with', 'from', 'that', 'this', 'have', 'has', 'his', 'her', 'they', 'them', 'their', 'horse', 'ride', 'rode', 'named', 'name', 'tell', 'show', 'find', 'about']);
 
 function cleanText(text) { return text.replace(/\s+/g, ' ').trim(); }
-function questionTerms(question) { return question.toLowerCase().replace(/[^a-z0-9’'\s]/g, ' ').split(/\s+/).filter((word) => word.length > 2 && !stopWords.has(word)); }
-function wantsExpandedAnswer(question) { const text = question.toLowerCase().trim(); return text.startsWith('tell me about') || text.startsWith('tell me everything') || text.startsWith('who is') || text.startsWith('who was') || text.includes('show me') || text.includes('passage') || text.includes('scene') || text.includes('quote'); }
-function isDirectQuestion(question) { return /^(who|what|when|where|why|how|did|does|do|is|are|was|were)\b/.test(question.toLowerCase().trim()); }
+function normalizedText(question) { return question.toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9\s]/g, ' '); }
+function questionTerms(question) { return normalizedText(question).split(/\s+/).filter((word) => word.length > 2 && !stopWords.has(word)); }
+function wantsExpandedAnswer(question) {
+  const text = normalizedText(question).trim();
+  return text.startsWith('tell me about') || text.startsWith('tell me everything') || text.startsWith('who is') || text.startsWith('who was') || text.includes('show me') || text.includes('passage') || text.includes('scene') || text.includes('quote') || text.includes('special') || text.includes('deep') || text.includes('bond') || text.includes('relationship') || text.startsWith('why');
+}
+function isDirectQuestion(question) { return /^(who|what|when|where|why|how|did|does|do|is|are|was|were)\b/.test(normalizedText(question).trim()); }
+function personIsMentioned(text, person) { return text.includes(person) || text.includes(`${person}s`); }
 
 function findRelationship(question) {
-  const text = question.toLowerCase();
-  return relationships.find((item) => item.people.every((person) => text.includes(person)));
+  const text = normalizedText(question);
+  return relationships.find((item) => item.people.every((person) => personIsMentioned(text, person)));
 }
 
 function directCanonAnswer(question) {
-  const text = question.toLowerCase();
+  const text = normalizedText(question);
   if (!text.trim()) return '';
   const relationship = findRelationship(question);
-  if (relationship && !wantsExpandedAnswer(question)) return relationship.direct;
   if (relationship && wantsExpandedAnswer(question)) return relationship.summary;
+  if (relationship) return relationship.direct;
 
   if (text.includes('who') && text.includes('jake') && text.includes('marry')) return 'Jake married Krys Callahan.';
   if (text.includes('when') && text.includes('jake') && text.includes('marry')) return 'Jake married Krys in the late 1880s.';
@@ -46,7 +51,7 @@ function directCanonAnswer(question) {
 }
 
 function expandedCanonAnswer(question) {
-  const text = question.toLowerCase();
+  const text = normalizedText(question);
   const relationship = findRelationship(question);
   if (relationship) return relationship.summary;
   const found = characters.find((character) => text.includes(character.name.split(' ')[0].toLowerCase()));
@@ -57,11 +62,11 @@ function expandedCanonAnswer(question) {
 function searchBooks(question, books) {
   const terms = questionTerms(question);
   if (!terms.length || !books.length) return [];
-  const phrase = cleanText(question.toLowerCase());
+  const phrase = cleanText(normalizedText(question));
   const results = [];
   for (const book of books) {
     for (const part of book.sections || []) {
-      const lower = part.text.toLowerCase();
+      const lower = normalizedText(part.text);
       let score = lower.includes(phrase) ? 25 : 0;
       for (const term of terms) if (lower.includes(term)) score += 4;
       if (score > 0) results.push({ ...part, bookTitle: book.title, bookNumber: book.number, score });
@@ -76,10 +81,9 @@ function buildBookAnswer(question, books) {
   const expanded = wantsExpandedAnswer(question);
   const directQuestion = isDirectQuestion(question);
   const matches = searchBooks(question, books);
-  if (direct && !expanded) return direct;
+  if (direct) return direct;
   const characterAnswer = expandedCanonAnswer(question);
   if (characterAnswer && expanded) return characterAnswer;
-  if (direct && expanded) return direct;
   if (directQuestion && !expanded) return 'I could not find a direct answer for that in the current Five Oaks canon yet.';
   if (matches.length) return `I found this in ${matches[0].bookTitle}:\n\n${matches[0].text}`;
   return 'I could not find that information in the current Five Oaks canon.';
