@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { canonRules, characters, families } from './data/diamondData.js';
+import diamondPortrait from '../DIAMOND.jpg';
 
 const tabs = ['Ask Diamond', 'Characters', 'Families', 'Canon Rules'];
 
@@ -72,16 +73,14 @@ function pickFemaleVoice(voices) {
 
 function DiamondFace({ speaking }) {
   return (
-    <section className={`diamondFace ${speaking ? 'speaking' : ''}`} aria-label="Diamond assistant face">
-      <div className="diamondGlow" />
-      <div className="faceFrame">
-        <div className="browLine" />
-        <div className="eyes">
-          <span className="eye"><span className="pupil" /></span>
-          <span className="eye"><span className="pupil" /></span>
-        </div>
-        <div className="noseGem" />
-        <div className="mouth" />
+    <section className={`diamondPortraitShell ${speaking ? 'speaking' : ''}`} aria-label="Diamond assistant portrait">
+      <div className="portraitGlow" />
+      <div className="portraitFrame">
+        <img className="diamondPortrait" src={diamondPortrait} alt="Diamond" />
+        <div className="portraitBreath" />
+        <div className="portraitBlink leftBlink" />
+        <div className="portraitBlink rightBlink" />
+        <div className="portraitMouth" />
       </div>
       <p className="faceCaption">{speaking ? 'Diamond is speaking' : 'Diamond is online'}</p>
     </section>
