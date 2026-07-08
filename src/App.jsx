@@ -26,11 +26,18 @@ function wantsExpandedAnswer(question) {
   return text.startsWith('tell me about') || text.startsWith('tell me everything') || text.startsWith('who is') || text.startsWith('who was') || text.includes('show me') || text.includes('passage') || text.includes('scene') || text.includes('quote');
 }
 
+function isDirectQuestion(question) {
+  const text = question.toLowerCase().trim();
+  return /^(who|what|when|where|why|how|did|does|do|is|are|was|were)\b/.test(text);
+}
+
 function directCanonAnswer(question) {
   const text = question.toLowerCase();
   if (!text.trim()) return 'Ask me something from Five Oaks canon. I will answer direct questions directly, and I will expand only when you ask me to.';
 
+  if (text.includes('who') && text.includes('jake') && text.includes('marry')) return 'Jake married Krys Callahan.';
   if (text.includes('when') && text.includes('jake') && text.includes('marry')) return 'Jake married Krys in the late 1880s.';
+  if (text.includes('who') && text.includes('gave') && text.includes('krys') && (text.includes('away') || text.includes('give'))) return 'Matt Haskins gave Krys away when she married Jake.';
   if (text.includes('krys') && text.includes('horse')) return 'Krys rides Lark.';
   if (text.includes('jace') && text.includes('horse')) return 'Jace rides Barney.';
   if (text.includes('jake') && text.includes('horse')) return 'Jake’s outlaw-era horse is Grave. By 1916, Grave is gone/deceased and Jake rides a later horse.';
@@ -70,6 +77,7 @@ function searchBooks(question, books) {
 function buildBookAnswer(question, books) {
   const direct = directCanonAnswer(question);
   const expanded = wantsExpandedAnswer(question);
+  const directQuestion = isDirectQuestion(question);
   const matches = searchBooks(question, books);
 
   if (direct && !expanded) return direct;
@@ -85,6 +93,7 @@ function buildBookAnswer(question, books) {
     return direct;
   }
 
+  if (directQuestion && !expanded) return 'I could not find a direct answer for that in the current Five Oaks canon yet.';
   if (matches.length) return `I found this in ${matches[0].bookTitle}:\n\n${matches[0].text}`;
   return 'I could not find that information in the current Five Oaks canon.';
 }
