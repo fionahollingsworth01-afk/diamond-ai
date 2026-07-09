@@ -5,6 +5,7 @@ import { relationships } from './data/relationshipData.js';
 import { findCharacterKnowledge } from './data/characterKnowledge.js';
 import { findEventKnowledge } from './data/eventKnowledge.js';
 import { findPlaceKnowledge } from './data/placeKnowledge.js';
+import { findTimelineKnowledge } from './data/timelineKnowledge.js';
 import diamondPortrait from '../DIAMOND.jpg';
 
 const tabs = [
@@ -41,6 +42,7 @@ function knowledgeEntryAnswer(entry, question) {
 function characterKnowledgeAnswer(question) { return knowledgeEntryAnswer(findCharacterKnowledge(question), question); }
 function eventKnowledgeAnswer(question) { return knowledgeEntryAnswer(findEventKnowledge(question), question); }
 function placeKnowledgeAnswer(question) { return knowledgeEntryAnswer(findPlaceKnowledge(question), question); }
+function timelineKnowledgeAnswer(question) { return knowledgeEntryAnswer(findTimelineKnowledge(question), question); }
 
 function directCanonAnswer(question) {
   const text = normalizedText(question);
@@ -66,6 +68,8 @@ function expandedCanonAnswer(question) {
   const text = normalizedText(question);
   const relationship = findRelationship(question);
   if (relationship) return relationship.summary;
+  const timelineKnowledge = timelineKnowledgeAnswer(question);
+  if (timelineKnowledge) return timelineKnowledge;
   const placeKnowledge = placeKnowledgeAnswer(question);
   if (placeKnowledge) return placeKnowledge;
   const eventKnowledge = eventKnowledgeAnswer(question);
@@ -96,6 +100,7 @@ function searchBooks(question, books) {
 function buildBookAnswer(question, books) {
   if (!question.trim()) return '';
   const direct = directCanonAnswer(question);
+  const timelineKnowledge = timelineKnowledgeAnswer(question);
   const placeKnowledge = placeKnowledgeAnswer(question);
   const characterKnowledge = characterKnowledgeAnswer(question);
   const eventKnowledge = eventKnowledgeAnswer(question);
@@ -103,6 +108,7 @@ function buildBookAnswer(question, books) {
   const directQuestion = isDirectQuestion(question);
   const matches = searchBooks(question, books);
   if (direct) return direct;
+  if (timelineKnowledge) return timelineKnowledge;
   if (placeKnowledge) return placeKnowledge;
   if (eventKnowledge) return eventKnowledge;
   if (characterKnowledge) return characterKnowledge;
@@ -128,7 +134,7 @@ function DiamondFace({ speaking }) {
 
 function App() {
   const [activeTab, setActiveTab] = useState('Ask Diamond');
-  const [question, setQuestion] = useState('Tell me about the old Patterson place');
+  const [question, setQuestion] = useState('Tell me about 1916');
   const [voices, setVoices] = useState([]);
   const [speaking, setSpeaking] = useState(false);
   const loadedBooks = bookIndex.filter((book) => (book.sections || []).length > 0);
@@ -144,7 +150,7 @@ function App() {
     <main className="appShell">
       <section className="hero heroWithFace"><div><p className="eyebrow">The World of Five Oaks</p><h1>Diamond</h1><p className="tagline">Five Oaks canon assistant, character encyclopedia, and continuity guard.</p></div><DiamondFace speaking={speaking} /><div className="statusCard"><span>Library</span><strong>{loadedBooks.length} of {bookIndex.length} books indexed</strong></div></section>
       <nav className="tabs" aria-label="Diamond sections">{tabs.map((tab) => <button key={tab.label} className={activeTab === tab.label ? 'active' : ''} onClick={() => setActiveTab(tab.label)}><span aria-hidden="true">{tab.icon}</span> {tab.label}</button>)}</nav>
-      {activeTab === 'Ask Diamond' && <section className="panel askPanel"><h2>Ask Diamond</h2><p>{loadedBooks.length ? 'Books 1-12 are indexed. Phase 2 now checks character, event, and place knowledge before book passages.' : 'Diamond has not indexed the book library yet.'}</p><textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask Diamond..." aria-label="Ask Diamond a Five Oaks question" /><div className="answerBox"><span>Diamond says</span><p style={{ whiteSpace: 'pre-wrap' }}>{answer}</p></div>{matches.length > 1 && <div className="gridPanel" style={{ marginTop: '18px' }}>{matches.slice(1, 4).map((match) => <article className="card" key={match.id}><h3>{match.bookTitle}</h3><p>{match.text}</p></article>)}</div>}<div className="voiceControls"><button type="button" onClick={speakAnswer} disabled={!answer}>Hear Diamond</button><button type="button" onClick={stopSpeaking}>Stop</button><button type="button" onClick={clearAskDiamond}>Clear</button><p>{diamondVoice ? `Voice selected: ${diamondVoice.name}` : 'Female voice loading...'}</p></div></section>}
+      {activeTab === 'Ask Diamond' && <section className="panel askPanel"><h2>Ask Diamond</h2><p>{loadedBooks.length ? 'Books 1-12 are indexed. Phase 2 now checks timeline, character, event, and place knowledge before book passages.' : 'Diamond has not indexed the book library yet.'}</p><textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask Diamond..." aria-label="Ask Diamond a Five Oaks question" /><div className="answerBox"><span>Diamond says</span><p style={{ whiteSpace: 'pre-wrap' }}>{answer}</p></div>{matches.length > 1 && <div className="gridPanel" style={{ marginTop: '18px' }}>{matches.slice(1, 4).map((match) => <article className="card" key={match.id}><h3>{match.bookTitle}</h3><p>{match.text}</p></article>)}</div>}<div className="voiceControls"><button type="button" onClick={speakAnswer} disabled={!answer}>Hear Diamond</button><button type="button" onClick={stopSpeaking}>Stop</button><button type="button" onClick={clearAskDiamond}>Clear</button><p>{diamondVoice ? `Voice selected: ${diamondVoice.name}` : 'Female voice loading...'}</p></div></section>}
       {activeTab === 'Books' && <section className="gridPanel">{bookIndex.map((book) => <article className="card" key={book.file}><h2>Book {book.number}</h2><h3>{book.title}</h3><p>{(book.sections || []).length ? `${book.sections.length} searchable sections indexed.` : 'Not indexed yet.'}</p></article>)}{bookIndexErrors.map((error) => <article className="card" key={error.file}><h3>Index warning</h3><p>{error.book}: {error.error}</p></article>)}</section>}
       {activeTab === 'Characters' && <section className="gridPanel">{characters.map((character) => <article className="card" key={character.name}><h2>{character.name}</h2><p className="muted">{character.givenName}</p><h3>{character.role}</h3><p>{character.core}</p><p><strong>Horse:</strong> {character.horse} — {character.horseEra}</p><p><strong>Weapons:</strong> {character.weapons.join(', ')}</p></article>)}</section>}
       {activeTab === 'Relationships' && <section className="gridPanel">{relationships.map((item) => <article className="card" key={item.title}><h2>{item.title}</h2><p>{item.summary}</p></article>)}</section>}
