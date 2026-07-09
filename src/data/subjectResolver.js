@@ -2,6 +2,7 @@ import { findCharacterKnowledge } from './characterKnowledge.js';
 import { findEventKnowledge } from './eventKnowledge.js';
 import { findPlaceKnowledge } from './placeKnowledge.js';
 import { findTimelineKnowledge } from './timelineKnowledge.js';
+import { findRelationshipEdge, findSubjectConnections, relationshipGraph } from './relationshipGraph.js';
 import { relationships } from './relationshipData.js';
 
 export function normalizeQuestion(question) {
@@ -22,9 +23,68 @@ function findRelationshipKnowledge(question) {
   return relationships.find((item) => item.people.every((person) => personIsMentioned(text, person)));
 }
 
+function uniqueItems(items) {
+  return [...new Set(items)];
+}
+
+function wordsForSubject(subject) {
+  return uniqueItems([subject.key, subject.displayName.toLowerCase(), ...(subject.aliases || [])])
+    .map((item) => normalizeQuestion(item).trim())
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+}
+
+function phraseIsMentioned(text, phrase) {
+  return ` ${text} `.includes(` ${phrase} `);
+}
+
+export function resolveMentionedSubjects(question) {
+  const text = normalizeQuestion(question);
+  return relationshipGraph.nodes.filter((subject) => wordsForSubject(subject).some((phrase) => phraseIsMentioned(text, phrase)));
+}
+
+function asksForMultiSubjectAnswer(question, subjects) {
+  const text = normalizeQuestion(question);
+  if (subjects.length >= 3) return true;
+  return subjects.length >= 2 && (text.includes('relationship') || text.includes('relationships') || text.includes('bond') || text.includes('bonds') || text.includes('connected') || text.includes('connect') || text.includes('how are') || text.includes('between') || text.includes('together') || text.includes('family'));
+}
+
+function subjectName(key) {
+  return relationshipGraph.nodes.find((node) => node.key === key)?.displayName || key;
+}
+
+function buildMultiSubjectAnswer(subjects, expanded) {
+  const keys = subjects.map((subject) => subject.key);
+  const pairAnswers = [];
+
+  for (let first = 0; first < keys.length; first += 1) {
+    for (let second = first + 1; second < keys.length; second += 1) {
+      const edge = findRelationshipEdge(keys[first], keys[second]);
+      if (edge) pairAnswers.push(`${edge.title}: ${expanded ? edge.summary : edge.direct}`);
+    }
+  }
+
+  if (pairAnswers.length) {
+    return pairAnswers.join('\n\n');
+  }
+
+  const connections = findSubjectConnections(keys);
+  if (connections.length) {
+    return connections.map((edge) => `${edge.title}: ${expanded ? edge.summary : edge.direct}`).join('\n\n');
+  }
+
+  return `Diamond knows ${keys.map(subjectName).join(', ')} as canon subjects, but no direct relationship link has been entered for that exact group yet.`;
+}
+
 export function resolveSubject(question) {
   const text = normalizeQuestion(question);
   const expanded = wantsExpandedAnswer(question);
+  const mentionedSubjects = resolveMentionedSubjects(question);
+
+  if (asksForMultiSubjectAnswer(question, mentionedSubjects)) {
+    return { type: 'multi-subject', subjects: mentionedSubjects, answer: buildMultiSubjectAnswer(mentionedSubjects, expanded) };
+  }
+
   const relationship = findRelationshipKnowledge(question);
   const place = findPlaceKnowledge(question);
   const event = findEventKnowledge(question);
