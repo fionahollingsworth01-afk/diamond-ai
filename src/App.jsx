@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { canonRules, characters, families } from './data/diamondData.js';
 import { bookIndex, bookIndexErrors } from './data/bookIndex.js';
 import { relationships } from './data/relationshipData.js';
+import { relationshipGraph } from './data/relationshipGraph.js';
 import { findCharacterKnowledge } from './data/characterKnowledge.js';
 import { findEventKnowledge } from './data/eventKnowledge.js';
 import { findPlaceKnowledge } from './data/placeKnowledge.js';
@@ -83,7 +84,7 @@ function DiamondFace({ speaking }) {
 
 function App() {
   const [activeTab, setActiveTab] = useState('Ask Diamond');
-  const [question, setQuestion] = useState('How did the Conrad arc affect Matt?');
+  const [question, setQuestion] = useState('How are Jake, Krys, and Matt connected?');
   const [voices, setVoices] = useState([]);
   const [speaking, setSpeaking] = useState(false);
   const loadedBooks = bookIndex.filter((book) => (book.sections || []).length > 0);
@@ -99,10 +100,10 @@ function App() {
     <main className="appShell">
       <section className="hero heroWithFace"><div><p className="eyebrow">The World of Five Oaks</p><h1>Diamond</h1><p className="tagline">Five Oaks canon assistant, character encyclopedia, and continuity guard.</p></div><DiamondFace speaking={speaking} /><div className="statusCard"><span>Library</span><strong>{loadedBooks.length} of {bookIndex.length} books indexed</strong></div></section>
       <nav className="tabs" aria-label="Diamond sections">{tabs.map((tab) => <button key={tab.label} className={activeTab === tab.label ? 'active' : ''} onClick={() => setActiveTab(tab.label)}><span aria-hidden="true">{tab.icon}</span> {tab.label}</button>)}</nav>
-      {activeTab === 'Ask Diamond' && <section className="panel askPanel"><h2>Ask Diamond</h2><p>{loadedBooks.length ? 'Books 1-12 are indexed. Phase 2 subject resolver now routes questions before book search.' : 'Diamond has not indexed the book library yet.'}</p><textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask Diamond..." aria-label="Ask Diamond a Five Oaks question" /><div className="answerBox"><span>Diamond says</span><p style={{ whiteSpace: 'pre-wrap' }}>{answer}</p></div>{matches.length > 1 && <div className="gridPanel" style={{ marginTop: '18px' }}>{matches.slice(1, 4).map((match) => <article className="card" key={match.id}><h3>{match.bookTitle}</h3><p>{match.text}</p></article>)}</div>}<div className="voiceControls"><button type="button" onClick={speakAnswer} disabled={!answer}>Hear Diamond</button><button type="button" onClick={stopSpeaking}>Stop</button><button type="button" onClick={clearAskDiamond}>Clear</button><p>{diamondVoice ? `Voice selected: ${diamondVoice.name}` : 'Female voice loading...'}</p></div></section>}
+      {activeTab === 'Ask Diamond' && <section className="panel askPanel"><h2>Ask Diamond</h2><p>{loadedBooks.length ? 'Books 1-12 are indexed. Phase 2 now handles multi-subject questions and relationship graph routing before book search.' : 'Diamond has not indexed the book library yet.'}</p><textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask Diamond..." aria-label="Ask Diamond a Five Oaks question" /><div className="answerBox"><span>Diamond says</span><p style={{ whiteSpace: 'pre-wrap' }}>{answer}</p></div>{matches.length > 1 && <div className="gridPanel" style={{ marginTop: '18px' }}>{matches.slice(1, 4).map((match) => <article className="card" key={match.id}><h3>{match.bookTitle}</h3><p>{match.text}</p></article>)}</div>}<div className="voiceControls"><button type="button" onClick={speakAnswer} disabled={!answer}>Hear Diamond</button><button type="button" onClick={stopSpeaking}>Stop</button><button type="button" onClick={clearAskDiamond}>Clear</button><p>{diamondVoice ? `Voice selected: ${diamondVoice.name}` : 'Female voice loading...'}</p></div></section>}
       {activeTab === 'Books' && <section className="gridPanel">{bookIndex.map((book) => <article className="card" key={book.file}><h2>Book {book.number}</h2><h3>{book.title}</h3><p>{(book.sections || []).length ? `${book.sections.length} searchable sections indexed.` : 'Not indexed yet.'}</p></article>)}{bookIndexErrors.map((error) => <article className="card" key={error.file}><h3>Index warning</h3><p>{error.book}: {error.error}</p></article>)}</section>}
       {activeTab === 'Characters' && <section className="gridPanel">{characters.map((character) => <article className="card" key={character.name}><h2>{character.name}</h2><p className="muted">{character.givenName}</p><h3>{character.role}</h3><p>{character.core}</p><p><strong>Horse:</strong> {character.horse} — {character.horseEra}</p><p><strong>Weapons:</strong> {character.weapons.join(', ')}</p></article>)}</section>}
-      {activeTab === 'Relationships' && <section className="gridPanel">{relationships.map((item) => <article className="card" key={item.title}><h2>{item.title}</h2><p>{item.summary}</p></article>)}</section>}
+      {activeTab === 'Relationships' && <section className="gridPanel"><article className="card"><h2>Relationship Graph</h2><p>{relationshipGraph.nodes.length} subjects and {relationshipGraph.edges.length} direct canon links are available to Diamond’s resolver.</p></article>{relationshipGraph.edges.map((item) => <article className="card" key={`${item.source}-${item.target}`}><h2>{item.title}</h2><p>{item.summary}</p></article>)}</section>}
       {activeTab === 'Families' && <section className="gridPanel">{families.map((item) => <article className="card" key={item.family}><h2>{item.family}</h2><p>{item.notes}</p></article>)}</section>}
       {activeTab === 'Canon Rules' && <section className="panel"><h2>Diamond’s Canon Rules</h2><ul className="rulesList">{canonRules.map((rule) => <li key={rule}>{rule}</li>)}</ul></section>}
     </main>
