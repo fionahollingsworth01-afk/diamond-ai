@@ -2,7 +2,7 @@ import { findCharacterKnowledge } from './characterKnowledge.js';
 import { findEventKnowledge } from './eventKnowledge.js';
 import { findPlaceKnowledge } from './placeKnowledge.js';
 import { findTimelineKnowledge } from './timelineKnowledge.js';
-import { findRelationshipEdge, findSubjectConnections, relationshipGraph } from './relationshipGraph.js';
+import { findRelationshipEdge, findRelationshipGroup, findRelationshipPath, findSubjectConnections, relationshipGraph } from './relationshipGraph.js';
 import { relationships } from './relationshipData.js';
 
 export function normalizeQuestion(question) {
@@ -49,28 +49,49 @@ function asksForMultiSubjectAnswer(question, subjects) {
   return subjects.length >= 2 && (text.includes('relationship') || text.includes('relationships') || text.includes('bond') || text.includes('bonds') || text.includes('connected') || text.includes('connect') || text.includes('how are') || text.includes('between') || text.includes('together') || text.includes('family'));
 }
 
+function asksHowConnected(question, subjects) {
+  const text = normalizeQuestion(question);
+  return subjects.length === 2 && (text.includes('how are') || text.includes('connected') || text.includes('connect') || text.includes('related'));
+}
+
 function subjectName(key) {
   return relationshipGraph.nodes.find((node) => node.key === key)?.displayName || key;
 }
 
+function pathAnswer(path) {
+  if (!path || path.length < 2) return '';
+  const parts = [];
+
+  for (let index = 0; index < path.length - 1; index += 1) {
+    const edge = findRelationshipEdge(path[index], path[index + 1]);
+    if (edge) parts.push(`${edge.title}: ${edge.direct}`);
+  }
+
+  return parts.length ? `Diamond does not have a direct link entered for those two yet, but the relationship graph connects them this way:\n\n${parts.join('\n\n')}` : '';
+}
+
 function buildMultiSubjectAnswer(subjects, expanded) {
   const keys = subjects.map((subject) => subject.key);
+  const group = findRelationshipGroup(keys);
+  if (group) return expanded ? group.expanded : group.direct;
+
   const pairAnswers = [];
 
   for (let first = 0; first < keys.length; first += 1) {
     for (let second = first + 1; second < keys.length; second += 1) {
       const edge = findRelationshipEdge(keys[first], keys[second]);
-      if (edge) pairAnswers.push(`${edge.title}: ${expanded ? edge.summary : edge.direct}`);
+      if (edge) pairAnswers.push(`${edge.title}: ${edge.direct}`);
     }
   }
 
   if (pairAnswers.length) {
-    return pairAnswers.join('\n\n');
+    const introduction = keys.length > 2 ? `${keys.map(subjectName).join(', ')} are connected through these canon relationships:` : '';
+    return [introduction, ...pairAnswers].filter(Boolean).join('\n\n');
   }
 
-  const connections = findSubjectConnections(keys);
+  const connections = findSubjectConnections(keys, true);
   if (connections.length) {
-    return connections.map((edge) => `${edge.title}: ${expanded ? edge.summary : edge.direct}`).join('\n\n');
+    return connections.map((edge) => `${edge.title}: ${edge.direct}`).join('\n\n');
   }
 
   return `Diamond knows ${keys.map(subjectName).join(', ')} as canon subjects, but no direct relationship link has been entered for that exact group yet.`;
@@ -82,7 +103,15 @@ export function resolveSubject(question) {
   const mentionedSubjects = resolveMentionedSubjects(question);
 
   if (asksForMultiSubjectAnswer(question, mentionedSubjects)) {
-    return { type: 'multi-subject', subjects: mentionedSubjects, answer: buildMultiSubjectAnswer(mentionedSubjects, expanded) };
+    const directAnswer = buildMultiSubjectAnswer(mentionedSubjects, expanded);
+
+    if (asksHowConnected(question, mentionedSubjects) && directAnswer.includes('no direct relationship link')) {
+      const path = findRelationshipPath(mentionedSubjects[0].key, mentionedSubjects[1].key);
+      const indirectAnswer = pathAnswer(path);
+      if (indirectAnswer) return { type: 'relationship-path', subjects: mentionedSubjects, path, answer: indirectAnswer };
+    }
+
+    return { type: 'multi-subject', subjects: mentionedSubjects, answer: directAnswer };
   }
 
   const relationship = findRelationshipKnowledge(question);
