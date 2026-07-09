@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { canonRules, characters, families } from './data/diamondData.js';
 import { bookIndex, bookIndexErrors } from './data/bookIndex.js';
 import { relationships } from './data/relationshipData.js';
+import { findCharacterKnowledge } from './data/characterKnowledge.js';
 import diamondPortrait from '../DIAMOND.jpg';
 
 const tabs = [
@@ -30,6 +31,12 @@ function findRelationship(question) {
   return relationships.find((item) => item.people.every((person) => personIsMentioned(text, person)));
 }
 
+function characterKnowledgeAnswer(question) {
+  const found = findCharacterKnowledge(question);
+  if (!found) return '';
+  return wantsExpandedAnswer(question) ? found.full : found.short;
+}
+
 function directCanonAnswer(question) {
   const text = normalizedText(question);
   if (!text.trim()) return '';
@@ -54,6 +61,8 @@ function expandedCanonAnswer(question) {
   const text = normalizedText(question);
   const relationship = findRelationship(question);
   if (relationship) return relationship.summary;
+  const knowledge = characterKnowledgeAnswer(question);
+  if (knowledge) return knowledge;
   const found = characters.find((character) => text.includes(character.name.split(' ')[0].toLowerCase()));
   if (found) return `${found.name}: ${found.core} Weapons: ${found.weapons.join(', ')}. Horse record: ${found.horse} (${found.horseEra}). ${found.notes}`;
   return '';
@@ -78,14 +87,17 @@ function searchBooks(question, books) {
 function buildBookAnswer(question, books) {
   if (!question.trim()) return '';
   const direct = directCanonAnswer(question);
+  const knowledge = characterKnowledgeAnswer(question);
   const expanded = wantsExpandedAnswer(question);
   const directQuestion = isDirectQuestion(question);
   const matches = searchBooks(question, books);
   if (direct) return direct;
+  if (knowledge) return knowledge;
   const characterAnswer = expandedCanonAnswer(question);
   if (characterAnswer && expanded) return characterAnswer;
   if (directQuestion && !expanded) return 'I could not find a direct answer for that in the current Five Oaks canon yet.';
-  if (matches.length) return `I found this in ${matches[0].bookTitle}:\n\n${matches[0].text}`;
+  if (matches.length && expanded) return `I found this in ${matches[0].bookTitle}:\n\n${matches[0].text}`;
+  if (matches.length) return 'I found book support, but not a clean direct answer yet. Ask “show me the passage” if you want the excerpt.';
   return 'I could not find that information in the current Five Oaks canon.';
 }
 
@@ -103,7 +115,7 @@ function DiamondFace({ speaking }) {
 
 function App() {
   const [activeTab, setActiveTab] = useState('Ask Diamond');
-  const [question, setQuestion] = useState('What is special about Krys and Matt’s relationship?');
+  const [question, setQuestion] = useState('Tell me about Conrad');
   const [voices, setVoices] = useState([]);
   const [speaking, setSpeaking] = useState(false);
   const loadedBooks = bookIndex.filter((book) => (book.sections || []).length > 0);
@@ -119,7 +131,7 @@ function App() {
     <main className="appShell">
       <section className="hero heroWithFace"><div><p className="eyebrow">The World of Five Oaks</p><h1>Diamond</h1><p className="tagline">Five Oaks canon assistant, character encyclopedia, and continuity guard.</p></div><DiamondFace speaking={speaking} /><div className="statusCard"><span>Library</span><strong>{loadedBooks.length} of {bookIndex.length} books indexed</strong></div></section>
       <nav className="tabs" aria-label="Diamond sections">{tabs.map((tab) => <button key={tab.label} className={activeTab === tab.label ? 'active' : ''} onClick={() => setActiveTab(tab.label)}><span aria-hidden="true">{tab.icon}</span> {tab.label}</button>)}</nav>
-      {activeTab === 'Ask Diamond' && <section className="panel askPanel"><h2>Ask Diamond</h2><p>{loadedBooks.length ? 'Books 1-12 are indexed. Direct questions get direct answers. Ask “tell me about” when you want the bigger file.' : 'Diamond has not indexed the book library yet.'}</p><textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask Diamond..." aria-label="Ask Diamond a Five Oaks question" /><div className="answerBox"><span>Diamond says</span><p style={{ whiteSpace: 'pre-wrap' }}>{answer}</p></div>{matches.length > 1 && <div className="gridPanel" style={{ marginTop: '18px' }}>{matches.slice(1, 4).map((match) => <article className="card" key={match.id}><h3>{match.bookTitle}</h3><p>{match.text}</p></article>)}</div>}<div className="voiceControls"><button type="button" onClick={speakAnswer} disabled={!answer}>Hear Diamond</button><button type="button" onClick={stopSpeaking}>Stop</button><button type="button" onClick={clearAskDiamond}>Clear</button><p>{diamondVoice ? `Voice selected: ${diamondVoice.name}` : 'Female voice loading...'}</p></div></section>}
+      {activeTab === 'Ask Diamond' && <section className="panel askPanel"><h2>Ask Diamond</h2><p>{loadedBooks.length ? 'Books 1-12 are indexed. Phase 2 character knowledge is now checked before book passages.' : 'Diamond has not indexed the book library yet.'}</p><textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask Diamond..." aria-label="Ask Diamond a Five Oaks question" /><div className="answerBox"><span>Diamond says</span><p style={{ whiteSpace: 'pre-wrap' }}>{answer}</p></div>{matches.length > 1 && <div className="gridPanel" style={{ marginTop: '18px' }}>{matches.slice(1, 4).map((match) => <article className="card" key={match.id}><h3>{match.bookTitle}</h3><p>{match.text}</p></article>)}</div>}<div className="voiceControls"><button type="button" onClick={speakAnswer} disabled={!answer}>Hear Diamond</button><button type="button" onClick={stopSpeaking}>Stop</button><button type="button" onClick={clearAskDiamond}>Clear</button><p>{diamondVoice ? `Voice selected: ${diamondVoice.name}` : 'Female voice loading...'}</p></div></section>}
       {activeTab === 'Books' && <section className="gridPanel">{bookIndex.map((book) => <article className="card" key={book.file}><h2>Book {book.number}</h2><h3>{book.title}</h3><p>{(book.sections || []).length ? `${book.sections.length} searchable sections indexed.` : 'Not indexed yet.'}</p></article>)}{bookIndexErrors.map((error) => <article className="card" key={error.file}><h3>Index warning</h3><p>{error.book}: {error.error}</p></article>)}</section>}
       {activeTab === 'Characters' && <section className="gridPanel">{characters.map((character) => <article className="card" key={character.name}><h2>{character.name}</h2><p className="muted">{character.givenName}</p><h3>{character.role}</h3><p>{character.core}</p><p><strong>Horse:</strong> {character.horse} — {character.horseEra}</p><p><strong>Weapons:</strong> {character.weapons.join(', ')}</p></article>)}</section>}
       {activeTab === 'Relationships' && <section className="gridPanel">{relationships.map((item) => <article className="card" key={item.title}><h2>{item.title}</h2><p>{item.summary}</p></article>)}</section>}
