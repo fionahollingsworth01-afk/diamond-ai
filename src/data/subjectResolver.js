@@ -1,3 +1,4 @@
+import { findBookLocation } from './bookIntelligence.js';
 import { findCharacterKnowledge } from './characterKnowledge.js';
 import { checkContinuity } from './continuityGuard.js';
 import { findEventKnowledge } from './eventKnowledge.js';
@@ -104,9 +105,11 @@ export function resolveSubject(question) {
   const expanded = wantsExpandedAnswer(question);
   const mentionedSubjects = resolveMentionedSubjects(question);
   const continuity = checkContinuity(question);
+  const bookLocation = findBookLocation(question);
   const inference = inferCanonAnswer(question);
 
   if (continuity?.answer) return continuity;
+  if (bookLocation?.answer) return bookLocation;
   if (inference?.answer) return inference;
 
   if (asksForMultiSubjectAnswer(question, mentionedSubjects)) {
