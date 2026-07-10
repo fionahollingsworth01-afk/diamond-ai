@@ -7,6 +7,7 @@ import { findRelationshipEdge, findRelationshipPath, relationshipGraph } from '.
 const inferenceRecords = [
   {
     key: 'conrad-pressure',
+    triggers: ['conrad', 'temptation', 'almost kiss'],
     subjects: ['conrad', 'krys', 'jake', 'matt'],
     events: ['conrad temptation arc'],
     consequences: {
@@ -18,6 +19,7 @@ const inferenceRecords = [
   },
   {
     key: 'whisper-aftermath',
+    triggers: ['whisper', 'krys shot', 'eli kills whisper'],
     subjects: ['eli', 'krys', 'matt'],
     events: ['whisper confrontation'],
     consequences: {
@@ -29,6 +31,7 @@ const inferenceRecords = [
   },
   {
     key: 'oil-generation',
+    triggers: ['oil', 'drill', 'drilling', 'patterson'],
     subjects: ['sawyer', 'dawson', 'jace', 'jake', 'matt', 'krys', 'luke', 'cole', 'tate', 'waya'],
     events: ['sawyer and dawson oil venture'],
     consequences: {
@@ -42,6 +45,7 @@ const inferenceRecords = [
   },
   {
     key: 'cole-tate-acceptance',
+    triggers: ['cole and tate', 'cole tate', 'barn kiss', 'creek meeting', 'tate acceptance'],
     subjects: ['cole', 'tate', 'krys', 'jace', 'sawyer', 'dawson'],
     events: ['cole and tate love story'],
     consequences: {
@@ -56,6 +60,7 @@ const inferenceRecords = [
   },
   {
     key: 'redhawk-family',
+    triggers: ['jennifer and waya', 'waya and jennifer', 'redhawk', 'tsula', 'town acceptance'],
     subjects: ['jennifer', 'waya', 'tsula', 'jace', 'sawyer', 'dawson', 'matt'],
     events: ['jennifer and waya arc'],
     consequences: {
@@ -104,15 +109,21 @@ function findKnowledgeByTitle(collection, title) {
 function findRelevantRecord(question, subjects) {
   const text = normalize(question);
   const keys = subjects.map((subject) => subject.key);
+
   return inferenceRecords
     .map((record) => {
-      let score = record.subjects.filter((subject) => keys.includes(subject)).length * 5;
-      if (record.events.some((event) => text.includes(normalize(event)))) score += 8;
+      const triggerMatched = record.triggers.some((trigger) => text.includes(normalize(trigger)));
+      let eventMatched = record.events.some((event) => text.includes(normalize(event)));
+
       for (const event of record.events) {
         const entry = findKnowledgeByTitle(eventKnowledge, event);
-        if (entry?.keys?.some((key) => text.includes(normalize(key)))) score += 6;
+        if (entry?.keys?.some((key) => text.includes(normalize(key)))) eventMatched = true;
       }
-      return { record, score };
+
+      if (!triggerMatched && !eventMatched) return { record, score: 0 };
+
+      const subjectScore = record.subjects.filter((subject) => keys.includes(subject)).length * 5;
+      return { record, score: subjectScore + (triggerMatched ? 8 : 0) + (eventMatched ? 8 : 0) };
     })
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score)[0]?.record;
