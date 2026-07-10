@@ -2,6 +2,7 @@ import { findCharacterKnowledge } from './characterKnowledge.js';
 import { findEventKnowledge } from './eventKnowledge.js';
 import { findPlaceKnowledge } from './placeKnowledge.js';
 import { findTimelineKnowledge } from './timelineKnowledge.js';
+import { inferCanonAnswer } from './inferenceEngine.js';
 import { findRelationshipEdge, findRelationshipGroup, findRelationshipPath, findSubjectConnections, relationshipGraph } from './relationshipGraph.js';
 import { relationships } from './relationshipData.js';
 
@@ -101,6 +102,9 @@ export function resolveSubject(question) {
   const text = normalizeQuestion(question);
   const expanded = wantsExpandedAnswer(question);
   const mentionedSubjects = resolveMentionedSubjects(question);
+  const inference = inferCanonAnswer(question);
+
+  if (inference?.answer) return inference;
 
   if (asksForMultiSubjectAnswer(question, mentionedSubjects)) {
     const directAnswer = buildMultiSubjectAnswer(mentionedSubjects, expanded);
