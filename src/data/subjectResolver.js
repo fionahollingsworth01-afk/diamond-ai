@@ -1,4 +1,5 @@
 import { findCharacterKnowledge } from './characterKnowledge.js';
+import { checkContinuity } from './continuityGuard.js';
 import { findEventKnowledge } from './eventKnowledge.js';
 import { findPlaceKnowledge } from './placeKnowledge.js';
 import { findTimelineKnowledge } from './timelineKnowledge.js';
@@ -102,8 +103,10 @@ export function resolveSubject(question) {
   const text = normalizeQuestion(question);
   const expanded = wantsExpandedAnswer(question);
   const mentionedSubjects = resolveMentionedSubjects(question);
+  const continuity = checkContinuity(question);
   const inference = inferCanonAnswer(question);
 
+  if (continuity?.answer) return continuity;
   if (inference?.answer) return inference;
 
   if (asksForMultiSubjectAnswer(question, mentionedSubjects)) {
