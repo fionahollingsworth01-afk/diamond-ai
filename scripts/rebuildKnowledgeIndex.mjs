@@ -33,42 +33,10 @@ function heading(line) {
   return /^[A-ZÀ-ÖØ-Ý0-9][A-Za-zÀ-ÖØ-öø-ÿ0-9 .,'“”‘’"()&/-]+$/.test(text);
 }
 
-function addAliases(records, type) {
-  const exact = new Set(records.map((record) => normalize(record.name)));
-  const candidates = new Map();
-
-  function offer(alias, record, score) {
-    const key = normalize(alias);
-    if (!key || exact.has(key)) return;
-    const current = candidates.get(key);
-    if (!current || score > current.score) candidates.set(key, { alias: clean(alias), record, score });
-  }
-
-  for (const record of records) {
-    const strength = (record.text.match(/\n[A-Za-z][A-Za-z ’'/-]*:/g) || []).length * 100 + record.text.length;
-    const first = record.name.trim().split(/\s+/)[0];
-    offer(first, record, strength);
-
-    // Nicknames in headings such as Jesse “Whisper” Winston and James "Ironjaw" Winston.
-    for (const match of record.name.matchAll(/[“"]([^”"]+)[”"]/g)) offer(match[1], record, strength + 1000);
-    for (const match of record.name.matchAll(/[‘']([^’']+)[’']/g)) offer(match[1], record, strength + 1000);
-
-    // Parenthetical aliases, when the parentheses contain a short alias rather than an explanation.
-    for (const match of record.name.matchAll(/\(([^)]+)\)/g)) {
-      const value = clean(match[1]);
-      if (value.split(/\s+/).length <= 3 && !/wife|husband|mother|father|sister|brother|aunt|uncle/i.test(value)) {
-        offer(value, record, strength + 500);
-      }
-    }
-  }
-
-  for (const [key, { alias, record }] of candidates) {
-    if (exact.has(key)) continue;
-    records.push({ id: `${type}-alias-${key.replace(/\s+/g, '-')}`, name: alias, text: record.text });
-    exact.add(key);
-  }
-
-  return records;
+function addAlias(records, alias, record, type) {
+  const key = normalize(alias);
+  if (!key || records.some((item) => normalize(item.name) === key)) return;
+  records.push({ id: `${type}-alias-${key.replace(/\s+/g, '-')}`, name: alias, text: record.text });
 }
 
 function parseNamedRecords(rawText, type) {
@@ -94,7 +62,6 @@ function parseNamedRecords(rawText, type) {
     text: lines.slice(start, starts[index + 1] ?? lines.length).join('\n').trim(),
   }));
 
-  // Compact entries such as "Henry Richards  Emma's father" and short outlaw entries.
   for (let i = 0; i < lines.length; i += 1) {
     const raw = lines[i].trim();
     if (!raw || field.test(raw)) continue;
@@ -105,7 +72,48 @@ function parseNamedRecords(rawText, type) {
     records.push({ id: `${type}-inline-${i}`, name, text: `${name}\n${clean(match[2])}` });
   }
 
-  return addAliases(records, type);
+  const byFirst = new Map();
+  for (const record of records) {
+    const first = normalize(record.name).split(' ')[0];
+    if (!first) continue;
+    const score = (record.text.match(/\n[A-Za-z][A-Za-z ’'/-]*:/g) || []).length * 100 + record.text.length;
+    const current = byFirst.get(first);
+    if (!current || score > current.score) byFirst.set(first, { record, score });
+  }
+
+  for (const [first, { record }] of byFirst) addAlias(records, record.name.split(/\s+/)[0], record, type);
+
+  for (const record of [...records]) {
+    for (const match of record.name.matchAll(/[“"]([^”"]+)[”"]/g)) addAlias(records, clean(match[1]), record, type);
+    for (const match of record.name.matchAll(/[‘']([^’']+)[’']/g)) addAlias(records, clean(match[1]), record, type);
+  }
+
+  // Guaranteed outlaw nickname aliases, pulled directly from the full master text.
+  for (const alias of ['Whisper', 'Ironjaw']) {
+    const aliasKey = normalize(alias);
+    const lineIndex = lines.findIndex((line) => normalize(line).split(' ').includes(aliasKey));
+    if (lineIndex < 0) continue;
+
+    let start = lineIndex;
+    while (start > 0 && clean(lines[start - 1])) start -= 1;
+
+    let end = lineIndex + 1;
+    while (end < lines.length) {
+      const current = clean(lines[end]);
+      const previousBlank = end === 0 || !clean(lines[end - 1]);
+      if (previousBlank && heading(current) && end > lineIndex + 1) break;
+      end += 1;
+    }
+
+    const record = {
+      id: `${type}-direct-${aliasKey}`,
+      name: clean(lines[lineIndex]),
+      text: lines.slice(lineIndex, end).join('\n').trim(),
+    };
+    if (record.text) addAlias(records, alias, record, type);
+  }
+
+  return records;
 }
 
 function makeReferenceSections(rawText, file) {
