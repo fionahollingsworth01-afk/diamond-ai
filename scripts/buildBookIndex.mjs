@@ -17,15 +17,25 @@ const books = [
   { number: 12, title: 'What We Keep', file: 'WHAT WE KEEP FULL BOOK.docx' },
 ];
 
+const knowledgeFiles = [
+  { title: 'Character Database', file: 'knowledge' },
+  { title: 'Horse Database', file: 'horses-database.md' },
+  { title: 'Livestock Database', file: 'livestock-database.md' },
+  { title: 'Places Database', file: 'places-database.md' },
+  { title: 'Businesses Database', file: 'businesses-database.md' },
+  { title: 'Timeline Database', file: 'timeline-database.md' },
+  { title: 'Events Database', file: 'events-database.md' },
+];
+
 function cleanText(text) {
   return text.replace(/\s+/g, ' ').trim();
 }
 
-function makeSections(text) {
+function makeSections(text, minimumLength = 45) {
   const paragraphs = text
     .split(/\n{2,}/)
     .map(cleanText)
-    .filter((line) => line.length > 80);
+    .filter((line) => line.length >= minimumLength);
 
   const sections = [];
   let chunk = [];
@@ -42,10 +52,10 @@ function makeSections(text) {
   }
 
   if (chunk.length) sections.push(chunk.join(' '));
-  return sections.slice(0, 1800);
+  return sections.slice(0, 2200);
 }
 
-async function main() {
+async function buildBooks() {
   const outputBooks = [];
   const errors = [];
 
@@ -53,7 +63,7 @@ async function main() {
     const fullPath = path.join(process.cwd(), 'public', 'books', book.file);
     try {
       const result = await mammoth.extractRawText({ path: fullPath });
-      const sections = makeSections(result.value).map((text, index) => ({
+      const sections = makeSections(result.value, 80).map((text, index) => ({
         id: `${book.number}-${index}`,
         text,
       }));
@@ -66,9 +76,43 @@ async function main() {
     }
   }
 
-  const output = `export const bookIndex = ${JSON.stringify(outputBooks, null, 2)};\n\nexport const bookIndexErrors = ${JSON.stringify(errors, null, 2)};\n`;
+  return { outputBooks, errors };
+}
+
+async function buildKnowledge() {
+  const outputKnowledge = [];
+  const errors = [];
+
+  for (const source of knowledgeFiles) {
+    const fullPath = path.join(process.cwd(), source.file);
+    try {
+      const text = await fs.readFile(fullPath, 'utf8');
+      const sections = makeSections(text).map((sectionText, index) => ({
+        id: `knowledge-${source.file}-${index}`,
+        text: sectionText,
+      }));
+      outputKnowledge.push({ ...source, sections });
+      console.log(`Indexed knowledge: ${source.title} (${sections.length} sections)`);
+    } catch (error) {
+      errors.push({ title: source.title, file: source.file, error: error.message });
+      outputKnowledge.push({ ...source, sections: [] });
+      console.warn(`Could not index ${source.title}: ${error.message}`);
+    }
+  }
+
+  return { outputKnowledge, errors };
+}
+
+async function main() {
+  const { outputBooks, errors: bookErrors } = await buildBooks();
+  const { outputKnowledge, errors: knowledgeErrors } = await buildKnowledge();
+
+  const bookOutput = `export const bookIndex = ${JSON.stringify(outputBooks, null, 2)};\n\nexport const bookIndexErrors = ${JSON.stringify(bookErrors, null, 2)};\n`;
+  const knowledgeOutput = `export const knowledgeIndex = ${JSON.stringify(outputKnowledge, null, 2)};\n\nexport const knowledgeIndexErrors = ${JSON.stringify(knowledgeErrors, null, 2)};\n`;
+
   await fs.mkdir(path.join(process.cwd(), 'src', 'data'), { recursive: true });
-  await fs.writeFile(path.join(process.cwd(), 'src', 'data', 'bookIndex.js'), output, 'utf8');
+  await fs.writeFile(path.join(process.cwd(), 'src', 'data', 'bookIndex.js'), bookOutput, 'utf8');
+  await fs.writeFile(path.join(process.cwd(), 'src', 'data', 'knowledgeIndex.js'), knowledgeOutput, 'utf8');
 }
 
 main().catch((error) => {
