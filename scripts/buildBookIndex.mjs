@@ -15,6 +15,12 @@ const books = [
   { number: 10, title: 'The Weight of a Name', file: 'THE WEIGHT OF A NAME FULL BOOK.docx' },
   { number: 11, title: 'A Bigger World', file: 'A BIGGER WORLD FULL BOOK.docx' },
   { number: 12, title: 'What We Keep', file: 'WHAT WE KEEP FULL BOOK.docx' },
+  { number: 13, title: 'Roots and Responsibility', file: 'Book 13 Roots and Responsibility.docx' },
+  { number: 14, title: 'Holding the Line', file: 'Book 14 Holding The Line.docx' },
+  { number: 15, title: 'What Comes After', file: 'Book 15 WHAT COMES AFTER.docx' },
+  { number: 16, title: 'The Line He Walks', file: 'Book 16 THE LINE HE WALKS.docx' },
+  { number: 17, title: 'Where He Stands', file: 'Book 17 WHERE HE STANDS.docx' },
+  { number: 18, title: 'Where the Fire Meets the Sky', file: 'Book 18 WHERE THE FIRE MEETS THE SKY.docx' },
 ];
 
 const knowledgeFiles = [
