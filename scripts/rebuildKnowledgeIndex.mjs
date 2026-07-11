@@ -42,11 +42,27 @@ function heading(line) {
   return /^[A-ZÀ-ÖØ-Ý0-9][A-Za-zÀ-ÖØ-öø-ÿ0-9 .,'“”‘’"()&/-]+$/.test(text);
 }
 
+function recordText(value = '') {
+  const lines = String(value)
+    .replace(/\r/g, '')
+    .split('\n')
+    .map(clean)
+    .filter(Boolean);
+
+  const deduped = [];
+  for (const line of lines) {
+    if (deduped.length && normalize(deduped[deduped.length - 1]) === normalize(line)) continue;
+    deduped.push(line);
+  }
+  return deduped.join('\n');
+}
+
 function addRecord(records, prefix, idSuffix, name, text) {
   const cleanedName = clean(name);
   if (!cleanedName || skip.has(normalize(cleanedName))) return;
   if (records.some((record) => normalize(record.name) === normalize(cleanedName))) return;
-  records.push({ id: `${prefix}-${idSuffix}`, name: cleanedName, text: clean(text) });
+  const cleanedText = recordText(text);
+  records.push({ id: `${prefix}-${idSuffix}`, name: cleanedName, text: cleanedText || cleanedName });
 }
 
 function addAlias(records, alias, record, type) {
@@ -114,7 +130,7 @@ function parseNamedRecords(rawText, type, fileKey = '') {
   const records = starts.map((start, index) => ({
     id: `${prefix}-${index}`,
     name: clean(lines[start]),
-    text: lines.slice(start, starts[index + 1] ?? lines.length).join('\n').trim(),
+    text: recordText(lines.slice(start, starts[index + 1] ?? lines.length).join('\n')),
   })).filter((record) => record.text && !skip.has(normalize(record.name)));
 
   for (let i = 0; i < lines.length; i += 1) {
