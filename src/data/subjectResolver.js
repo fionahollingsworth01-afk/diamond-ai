@@ -100,10 +100,34 @@ function buildMultiSubjectAnswer(subjects, expanded) {
   return `Diamond knows ${keys.map(subjectName).join(', ')} as canon subjects, but no direct relationship link has been entered for that exact group yet.`;
 }
 
+function directCanonFact(text) {
+  const asksIdentity = text.includes('who is') || text.includes('who was') || text.includes('tell me about');
+
+  if (asksIdentity && (phraseIsMentioned(text, 'tsula') || phraseIsMentioned(text, 'tsula red hawk') || phraseIsMentioned(text, 'tula'))) {
+    return {
+      type: 'fact',
+      answer: 'Tsula Red Hawk is a twelve-year-old boy and Waya Red Hawk’s nephew. Waya has raised him for the last four years after Tsula’s parents, Awinita “Fawn” Red Hawk and Kanuna Sixkiller, died. Jennifer becomes Tsula’s stepmother when she marries Waya.',
+    };
+  }
+
+  const asksOwner = text.includes('whose horse') || text.includes('who owns') || text.includes('belongs to') || text.includes('owner of');
+  if (asksOwner && phraseIsMentioned(text, 'lark')) return { type: 'fact', answer: 'Lark is Krys Callahan Kincaid’s horse. She originally belonged to Roger Callahan, but she chose Krys and became her mare.' };
+  if (asksOwner && phraseIsMentioned(text, 'grave')) return { type: 'fact', answer: 'Grave is Jake Kincaid’s horse.' };
+  if (asksOwner && phraseIsMentioned(text, 'ledger')) return { type: 'fact', answer: 'Ledger is Matt Haskins’s horse.' };
+  if (asksOwner && phraseIsMentioned(text, 'cinder')) return { type: 'fact', answer: 'Cinder is Luke Rawlins’s horse.' };
+  if (asksOwner && phraseIsMentioned(text, 'barney')) return { type: 'fact', answer: 'Barney is Jace Callahan’s horse.' };
+
+  return null;
+}
+
 export function resolveSubject(question) {
-  const text = normalizeQuestion(question);
+  const text = normalizeQuestion(question).replace(/\s+/g, ' ').trim();
   const expanded = wantsExpandedAnswer(question);
   const mentionedSubjects = resolveMentionedSubjects(question);
+  const directFact = directCanonFact(text);
+
+  if (directFact) return directFact;
+
   const continuity = checkContinuity(question);
   const bookLocation = findBookLocation(question);
   const inference = inferCanonAnswer(question);
