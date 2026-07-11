@@ -84,6 +84,13 @@ export const characterKnowledge = [
     short: 'Waya Redhawk becomes Jennifer’s husband and brings Tsula into Five Oaks.',
     full: 'Waya Redhawk is tied to Jennifer’s story and becomes part of Five Oaks through love, loyalty, and family. His marriage to Jennifer forces the town and the family to decide whether their values mean something when tested. He brings Tsula with him, and by the end of Jennifer and Waya’s book, Five Oaks stands for them.',
     facts: ['Marries Jennifer Callahan.', 'Father/family connection to Tsula.', 'Moves into Five Oaks with Tsula by the end of Jennifer and Waya’s book.']
+  },
+  {
+    keys: ['bekka'],
+    name: 'Bekka',
+    short: 'Bekka is a woman connected to the saloon and to Luke Rawlins’s life before he chose Emma. She cared for Luke, believed he might take her away from that life, and resented Emma because Luke chose a respectable future with her instead.',
+    full: 'Bekka is part of Luke Rawlins’s past in Built for More. She works at the saloon and shared a relationship with Luke before he committed himself to Emma. Bekka believed Luke might someday take her away and build a life with her. When Luke chose Emma, Bekka saw that choice as proof that he wanted respectability more than he wanted her. She confronted Emma and warned that Luke might return to the saloon if Emma or her family made him feel he did not belong. Bekka is not merely jealous; she is a woman who believed Luke represented her best chance to escape and was deeply wounded when he walked away.',
+    facts: ['Appears in Built for More.', 'Connected to Luke before his marriage to Emma.', 'Works at the saloon.', 'Confronts Emma after Luke chooses her.']
   }
 ];
 
