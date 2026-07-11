@@ -18,7 +18,8 @@ const skip = new Set([
 
 const field = /^[A-Za-z][A-Za-z ’'/-]*:/;
 const dossierLeadField = /^(Given Name|Age|Born|Role):/i;
-const compactDescriptionStart = /^(?:Lives?|Is|Was|Appears?|Works?|Hired|Married|Raised|Mother|Father|Sister|Brother|Wife|Husband|Uncle|Aunt|Daughter|Son|Children|Child|Friend|Owner|Worker|Employer|Guardian|Niece|Nephew|Grandmother|Grandfather|Longtime|Another|One|Elderly|Younger|Older|Susanna['’]s|Emma['’]s|Olivia['’]s|Luke['’]s|Matt['’]s|Waya['’]s|Tsula['’]s)\b/i;
+const compactDescriptionStart = /^(?:Lives?|Is|Was|Appears?|Works?|Hired|Married|Raised|Mother|Father|Sister|Brother|Wife|Husband|Uncle|Aunt|Daughter|Son|Children|Child|Friend|Owner|Worker|Employer|Guardian|Niece|Nephew|Grandmother|Grandfather|Longtime|Another|One|Elderly|Younger|Older|Susanna['’]s|Emma['’]s|Olivia['’]s|Luke['’]s|Matt['’]s|Waya['’]s|Tsula['’]s)/i;
+const genericWords = new Set(['uncle', 'aunt', 'children', 'child', 'married', 'to', 'and', 'lives', 'with', 'appears', 'role', 'family']);
 
 function clean(value = '') {
   return String(value).replace(/\s+/g, ' ').trim();
@@ -41,6 +42,13 @@ function heading(line) {
   return /^[A-ZÀ-ÖØ-Ý0-9][A-Za-zÀ-ÖØ-öø-ÿ0-9 .,'“”‘’"()&/-]+$/.test(text);
 }
 
+function addRecord(records, prefix, idSuffix, name, text) {
+  const cleanedName = clean(name);
+  if (!cleanedName || skip.has(normalize(cleanedName))) return;
+  if (records.some((record) => normalize(record.name) === normalize(cleanedName))) return;
+  records.push({ id: `${prefix}-${idSuffix}`, name: cleanedName, text: clean(text) });
+}
+
 function addAlias(records, alias, record, type) {
   const key = normalize(alias);
   if (!key || records.some((item) => normalize(item.name) === key)) return;
@@ -49,19 +57,42 @@ function addAlias(records, alias, record, type) {
 
 function compactRecordFromLine(rawLine) {
   const raw = clean(rawLine);
-  if (!raw || raw.length > 180 || raw.includes(':')) return null;
-
-  // Split at a likely description starter instead of greedily swallowing it as part of the name.
+  if (!raw || raw.length > 220 || raw.includes(':')) return null;
   const tokens = raw.split(/\s+/);
-  for (let split = 1; split < Math.min(tokens.length, 6); split += 1) {
+  for (let split = 1; split < Math.min(tokens.length, 7); split += 1) {
     const name = tokens.slice(0, split).join(' ');
     const description = tokens.slice(split).join(' ');
     if (!compactDescriptionStart.test(description)) continue;
-    if (!/^[A-ZÀ-ÖØ-Ý][A-Za-zÀ-ÖØ-öø-ÿ'’-]+(?:\s+[‘'"“][^’'"”]+[’'"”])?(?:\s+[A-ZÀ-ÖØ-Ý][A-Za-zÀ-ÖØ-öø-ÿ'’-]+){0,2}$/.test(name)) continue;
+    if (!/^[A-ZÀ-ÖØ-Ý][A-Za-zÀ-ÖØ-öø-ÿ'’-]+(?:\s+[‘'"“][^’'"”]+[’'"”])?(?:\s+[A-ZÀ-ÖØ-Ý][A-Za-zÀ-ÖØ-öø-ÿ'’-]+){0,3}$/.test(name)) continue;
     return { name: clean(name), description: clean(description) };
   }
-
   return null;
+}
+
+function namesFromRelationshipLine(rawLine) {
+  const raw = clean(rawLine);
+  if (!raw || raw.includes(':') || raw.length > 240) return [];
+  const names = [];
+
+  let match = raw.match(/^(?:Uncle|Aunt)\s+(.+?)\s+(?:Waya|Tsula|Jennifer|Luke|Matt|Krys|Jace|Susanna)\b/i);
+  if (match) names.push(clean(match[1]));
+
+  match = raw.match(/^(.+?)\s+married to\s+(.+?)(?:\s+children?\s+|$)(.*)$/i);
+  if (match) {
+    names.push(clean(match[1]), clean(match[2]));
+    const children = clean(match[3]).split(/\s+and\s+|\s*,\s*/).map(clean).filter(Boolean);
+    names.push(...children);
+  }
+
+  const quotedOrCapitalized = raw.match(/[A-ZÀ-ÖØ-Ý][A-Za-zÀ-ÖØ-öø-ÿ'’-]+(?:\s+[‘'"“][^’'"”]+[’'"”])?(?:\s+[A-ZÀ-ÖØ-Ý][A-Za-zÀ-ÖØ-öø-ÿ'’-]+){0,3}/g) || [];
+  for (const candidate of quotedOrCapitalized) {
+    const words = normalize(candidate).split(' ');
+    if (!words.length || words.every((word) => genericWords.has(word))) continue;
+    if (/^(Role|Family|Core|Locked|Greatest|Fatal|Psychological|Relationship|Background|Given Name|Born|Age)$/i.test(candidate)) continue;
+    names.push(clean(candidate));
+  }
+
+  return [...new Set(names)].filter((name) => name && !genericWords.has(normalize(name)) && name.length <= 80);
 }
 
 function parseNamedRecords(rawText, type, fileKey = '') {
@@ -72,14 +103,10 @@ function parseNamedRecords(rawText, type, fileKey = '') {
     const rawLine = lines[i];
     const text = clean(rawLine);
     if (!heading(text)) continue;
-
     const previousBlank = i === 0 || !clean(lines[i - 1]);
     const nextMeaningful = lines.slice(i + 1).map(clean).find(Boolean) || '';
     const beginsDossier = dossierLeadField.test(nextMeaningful);
     const visuallySeparatedName = /\s{2,}$/.test(rawLine);
-
-    // Dossiers may begin after another dossier with no blank line. Outlaw names in the
-    // imported files are marked by trailing spaces before their description line.
     if (previousBlank || beginsDossier || visuallySeparatedName) starts.push(i);
   }
 
@@ -90,24 +117,18 @@ function parseNamedRecords(rawText, type, fileKey = '') {
     text: lines.slice(start, starts[index + 1] ?? lines.length).join('\n').trim(),
   })).filter((record) => record.text && !skip.has(normalize(record.name)));
 
-  // Catch compact entries separated by two or more spaces on the same line.
   for (let i = 0; i < lines.length; i += 1) {
     const raw = lines[i];
     if (!raw || field.test(raw.trim())) continue;
     const match = raw.match(/^(.+?)\s{2,}(.{3,})$/);
-    if (!match) continue;
-    const name = clean(match[1]);
-    if (!heading(name) || skip.has(normalize(name)) || records.some((r) => normalize(r.name) === normalize(name))) continue;
-    records.push({ id: `${prefix}-inline-${i}`, name, text: `${name}\n${clean(match[2])}` });
-  }
+    if (match) addRecord(records, prefix, `inline-${i}`, match[1], `${clean(match[1])}\n${clean(match[2])}`);
 
-  // Catch compact entries written with ordinary single spaces, such as
-  // "Dallas ‘Dally’ Harlowe Lives with Eddie and Mary".
-  for (let i = 0; i < lines.length; i += 1) {
-    const compact = compactRecordFromLine(lines[i]);
-    if (!compact) continue;
-    if (skip.has(normalize(compact.name)) || records.some((record) => normalize(record.name) === normalize(compact.name))) continue;
-    records.push({ id: `${prefix}-compact-${i}`, name: compact.name, text: `${compact.name}\n${compact.description}` });
+    const compact = compactRecordFromLine(raw);
+    if (compact) addRecord(records, prefix, `compact-${i}`, compact.name, `${compact.name}\n${compact.description}`);
+
+    for (const name of namesFromRelationshipLine(raw)) {
+      addRecord(records, prefix, `related-${i}-${normalize(name).replace(/\s+/g, '-')}`, name, `${name}\n${clean(raw)}`);
+    }
   }
 
   const byFirst = new Map();
@@ -146,11 +167,7 @@ async function discoverCharacterSources() {
     const entries = await fs.readdir(knowledgeDir, { withFileTypes: true });
     return entries
       .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.md'))
-      .map((entry) => ({
-        title: titleFromFile(entry.name),
-        file: path.posix.join('knowledge', entry.name),
-        type: 'characters',
-      }));
+      .map((entry) => ({ title: titleFromFile(entry.name), file: path.posix.join('knowledge', entry.name), type: 'characters' }));
   } catch {
     return [];
   }
@@ -164,9 +181,7 @@ async function main() {
   for (const source of sources) {
     try {
       const rawText = await fs.readFile(path.join(process.cwd(), source.file), 'utf8');
-      const sections = source.type === 'reference'
-        ? makeReferenceSections(rawText, source.file)
-        : parseNamedRecords(rawText, source.type, source.file);
+      const sections = source.type === 'reference' ? makeReferenceSections(rawText, source.file) : parseNamedRecords(rawText, source.type, source.file);
       output.push({ ...source, rawText, sections });
       console.log(`Reindexed ${source.title}: ${sections.length} exact records`);
     } catch (error) {
