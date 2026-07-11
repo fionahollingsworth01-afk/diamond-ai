@@ -146,16 +146,20 @@ function buildAnswer(question, books, knowledge) {
   const exact = exactEntityMatch(question, knowledge);
   if (exact) return exactRecordAnswer(exact);
 
-  // For a direct name lookup, never substitute a record that merely mentions that name.
-  if (isEntityQuestion(question)) {
-    return 'I could not find an exact canon record for that name. I will not substitute a different character, horse, bull, cow, or place.';
-  }
-
   const resolved = resolveSubject(question);
   if (resolved?.answer) return resolved.answer;
 
   const reference = referenceAnswer(question);
   if (reference) return reference;
+
+  const knowledgeMatches = searchCollection(question, knowledge, 'title');
+  if (knowledgeMatches.length) {
+    return exactRecordAnswer(knowledgeMatches[0]);
+  }
+
+  if (isEntityQuestion(question)) {
+    return 'I could not find an exact canon record for that name. I will not substitute a different character, horse, bull, cow, or place.';
+  }
 
   const bookMatches = searchBooks(question, books);
   if (bookMatches.length && wantsPassage(question)) {
@@ -263,7 +267,7 @@ function App() {
       {activeTab === 'Ask Diamond' && (
         <section className="panel askPanel">
           <h2>Ask Diamond</h2>
-          <p>{loadedBooks.length ? `Books 1-12 and ${loadedKnowledge.length} canon databases are indexed. Exact canon records are used before manuscripts.` : 'Diamond has not indexed the book library yet.'}</p>
+          <p>{loadedBooks.length ? `Books 1-${loadedBooks.length} and ${loadedKnowledge.length} canon databases are indexed. Exact canon records are used before manuscripts.` : 'Diamond has not indexed the book library yet.'}</p>
           <textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask Diamond..." aria-label="Ask Diamond a Five Oaks question" />
           <div className="answerBox"><span>Diamond says</span><p style={{ whiteSpace: 'pre-wrap' }}>{answer}</p></div>
           {matches.length > 1 && <div className="gridPanel" style={{ marginTop: '18px' }}>{matches.slice(1, 4).map((match) => <article className="card" key={match.id}><h3>{match.bookTitle}</h3><p>{match.text}</p></article>)}</div>}
