@@ -18,7 +18,7 @@ const skip = new Set([
 
 const field = /^[A-Za-z][A-Za-z ’'/-]*:/;
 const dossierLeadField = /^(Given Name|Age|Born|Role):/i;
-const compactDescriptionStart = /^(?:Lives?|Is|Was|Appears?|Works?|Hired|Married|Raised|Mother|Father|Sister|Brother|Wife|Husband|Uncle|Aunt|Daughter|Son|Children|Child|Friend|Owner|Worker|Employer|Guardian|Niece|Nephew|Grandmother|Grandfather|Longtime|Another|One|Elderly|Younger|Older|Susanna['’]s|Emma['’]s|Olivia['’]s|Luke['’]s|Matt['’]s|Waya['’]s|Tsula['’]s)/i;
+const compactDescriptionStart = /^(?:Lives?|Is|Was|Appears?|Works?|Hired|Married|Raised|Mother|Father|Sister|Brother|Wife|Husband|Uncle|Aunt|Daughter|Son|Children|Child|Friend|Owner|Worker|Employer|Guardian|Niece|Nephew|Grandmother|Grandfather|Longtime|Another|One|Elderly|Younger|Older|[A-ZÀ-ÖØ-Ý][A-Za-zÀ-ÖØ-öø-ÿ'’-]+['’]s)\b/i;
 const genericWords = new Set(['uncle', 'aunt', 'children', 'child', 'married', 'to', 'and', 'lives', 'with', 'appears', 'role', 'family']);
 
 function clean(value = '') {
@@ -148,6 +148,7 @@ function parseNamedRecords(rawText, type, fileKey = '') {
       const alias = clean(match[1]);
       if (alias.split(/\s+/).length <= 3) addAlias(records, alias, record, type);
     }
+    if (/\bmarried to\b/i.test(record.text)) addAlias(records, `${record.name} married to`, record, type);
   }
 
   return records;
