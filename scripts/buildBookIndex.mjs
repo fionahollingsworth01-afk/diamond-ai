@@ -28,23 +28,23 @@ const knowledgeFiles = [
 ];
 
 const supplementalCharacters = [
-  {
-    name: 'Tavi',
-    text: 'Tavi\nAge: 12\nRole: Tsula Red Hawk’s best friend\nFamily: Older sister Aiyana.\nCore Spine: Tavi is Tsula’s closest friend and part of the Cherokee community connected to Waya and Jennifer. He gives Tsula a friendship grounded in familiarity, loyalty, and shared childhood.',
-  },
-  {
-    name: 'Aiyana',
-    text: 'Aiyana\nAge: 19\nRole: Tavi’s older sister\nFamily: Younger brother Tavi.\nCore Spine: Aiyana is a young Cherokee woman who showed interest in Waya before Jennifer and Waya became a couple. She belongs to the community surrounding Waya, Tsula, and the Red Hawk family.',
-  },
-  {
-    name: 'Tsula',
-    aliases: ['Tsula Red Hawk', 'Tsula Redhawk', 'Tula'],
-    text: 'Tsula Red Hawk\nAge: 12\nRole: Waya Red Hawk’s nephew and foster son\nFamily: Son of Awinita “Fawn” Red Hawk and Kanuna Sixkiller, both deceased. Nephew of Waya Red Hawk. Stepson in every meaningful way of Jennifer Callahan Red Hawk.\nCore Spine: Waya has raised Tsula for the last four years, giving him safety, family, and a permanent home after the deaths of his parents.',
-  },
+  { name: 'Tavi', text: 'Tavi\nAge: 12\nRole: Tsula Red Hawk’s best friend\nFamily: Older sister Aiyana.\nCore Spine: Tavi is Tsula’s closest friend and part of the Cherokee community connected to Waya and Jennifer.' },
+  { name: 'Aiyana', text: 'Aiyana\nAge: 19\nRole: Tavi’s older sister\nFamily: Younger brother Tavi.\nCore Spine: Aiyana is a young Cherokee woman who showed interest in Waya before Jennifer and Waya became a couple.' },
+  { name: 'Tsula', aliases: ['Tsula Red Hawk', 'Tsula Redhawk', 'Tula'], text: 'Tsula Red Hawk\nAge: 12\nRole: Waya Red Hawk’s nephew and foster son\nFamily: Son of Awinita “Fawn” Red Hawk and Kanuna Sixkiller, both deceased. Nephew of Waya Red Hawk. Stepson in every meaningful way of Jennifer Callahan Red Hawk.' },
 ];
+
+const groupHeadings = new Set([
+  'character-database.md', 'character base', 'the winston gang', "whisper's regular men",
+  'the jacobs outfit', "edgar's outfit", 'other named outlaws', 'five oaks tradition',
+]);
+const fieldLine = /^[A-Za-z][A-Za-z ’'/-]*:/;
 
 function cleanText(text = '') {
   return String(text).replace(/\s+/g, ' ').trim();
+}
+
+function normalize(text = '') {
+  return cleanText(text).toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 function makeSections(text, minimumLength = 45) {
@@ -52,7 +52,6 @@ function makeSections(text, minimumLength = 45) {
   const sections = [];
   let chunk = [];
   let length = 0;
-
   for (const paragraph of paragraphs) {
     chunk.push(paragraph);
     length += paragraph.length;
@@ -62,54 +61,31 @@ function makeSections(text, minimumLength = 45) {
       length = 0;
     }
   }
-
   if (chunk.length) sections.push(chunk.join(' '));
   return sections.slice(0, 2200);
 }
 
-const groupHeadings = new Set([
-  'the winston gang',
-  "whisper's regular men",
-  'the jacobs outfit',
-  "edgar's outfit",
-  'other named outlaws',
-  'five oaks tradition',
-]);
-
-function looksLikePersonHeading(candidate, nextLine, previousBlank) {
-  if (!candidate || candidate.includes(':') || candidate.length > 80) return false;
-  const normalized = candidate.toLowerCase().replace(/[:\s]+$/g, '').trim();
-  if (groupHeadings.has(normalized)) return false;
-  if (/^(character-database\.md|character base)$/i.test(candidate)) return false;
-  if (!previousBlank) return false;
-  if (/^(given name|age|born|role):/i.test(nextLine)) return true;
-  if (!nextLine || (nextLine.includes(':') && !/^[A-Z][A-Za-z .,'“”‘’"-]+$/.test(candidate))) return false;
-  return /^[A-Z][A-Za-z0-9 .,'“”‘’"-]+$/.test(candidate);
+function isHeading(line) {
+  if (!line || line.includes(':') || line.length > 90) return false;
+  if (groupHeadings.has(normalize(line))) return false;
+  return /^[A-ZÀ-ÖØ-Ý][A-Za-zÀ-ÖØ-öø-ÿ0-9 .,'“”‘’"-]+$/.test(line);
 }
 
-function addUniqueFirstNameAliases(records) {
-  const existingNames = new Set(records.map((record) => record.name.toLowerCase()));
-  const firstNameCounts = new Map();
-
+function addFirstNameAliases(records) {
+  const counts = new Map();
   for (const record of records) {
-    const firstName = record.name.trim().split(/\s+/)[0];
-    const key = firstName.toLowerCase();
-    firstNameCounts.set(key, (firstNameCounts.get(key) || 0) + 1);
+    const first = normalize(record.name).split(' ')[0];
+    if (first) counts.set(first, (counts.get(first) || 0) + 1);
   }
-
+  const existing = new Set(records.map((record) => normalize(record.name)));
   const aliases = [];
   for (const record of records) {
-    const firstName = record.name.trim().split(/\s+/)[0];
-    const key = firstName.toLowerCase();
-    if (!firstName || firstNameCounts.get(key) !== 1 || existingNames.has(key)) continue;
-    aliases.push({
-      id: `character-first-name-${key.replace(/[^a-z0-9]+/g, '-')}`,
-      name: firstName,
-      text: record.text,
-    });
-    existingNames.add(key);
+    const firstDisplay = record.name.trim().split(/\s+/)[0];
+    const first = normalize(firstDisplay);
+    if (!first || counts.get(first) !== 1 || existing.has(first)) continue;
+    aliases.push({ id: `character-first-${first}`, name: firstDisplay, text: record.text });
+    existing.add(first);
   }
-
   records.push(...aliases);
   return records;
 }
@@ -118,13 +94,11 @@ function makeCharacterSections(text) {
   const lines = text.replace(/\r/g, '').split('\n');
   const starts = [];
 
+  // Every full dossier begins on a blank-separated heading line. Do not require a particular next field.
   for (let index = 0; index < lines.length; index += 1) {
     const candidate = lines[index].trim();
     const previousBlank = index === 0 || !lines[index - 1].trim();
-    let next = index + 1;
-    while (next < lines.length && !lines[next].trim()) next += 1;
-    const nextLine = (lines[next] || '').trim();
-    if (looksLikePersonHeading(candidate, nextLine, previousBlank)) starts.push(index);
+    if (previousBlank && isHeading(candidate)) starts.push(index);
   }
 
   const records = starts.map((start, recordIndex) => {
@@ -134,132 +108,93 @@ function makeCharacterSections(text) {
       name: lines[start].trim(),
       text: lines.slice(start, end).join('\n').trim(),
     };
-  });
+  }).filter((record) => !groupHeadings.has(normalize(record.name)));
 
+  // Catch compact one-line entries, including relatives, ranch hands, and outlaws.
   for (let index = 0; index < lines.length; index += 1) {
     const raw = lines[index].trim();
-    const match = raw.match(/^([A-Z][A-Za-z0-9 .,'“”‘’"-]{1,45})\s{2,}(.{15,})$/);
+    if (!raw || fieldLine.test(raw)) continue;
+    const match = raw.match(/^([A-ZÀ-ÖØ-Ý][A-Za-zÀ-ÖØ-öø-ÿ0-9 .,'“”‘’"-]{1,55})\s{2,}(.{3,})$/);
     if (!match) continue;
     const name = match[1].trim();
-    if (groupHeadings.has(name.toLowerCase())) continue;
-    if (records.some((record) => record.name.toLowerCase() === name.toLowerCase())) continue;
+    if (groupHeadings.has(normalize(name))) continue;
+    if (records.some((record) => normalize(record.name) === normalize(name))) continue;
     records.push({ id: `character-inline-${index}`, name, text: `${name}\n${match[2].trim()}` });
   }
 
-  const existing = new Set(records.map((record) => record.name.toLowerCase()));
+  const existing = new Set(records.map((record) => normalize(record.name)));
   for (const item of supplementalCharacters) {
     for (const alias of [item.name, ...(item.aliases || [])]) {
-      if (existing.has(alias.toLowerCase())) continue;
-      records.push({
-        id: `character-supplemental-${alias.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-        name: alias,
-        text: item.text,
-      });
-      existing.add(alias.toLowerCase());
+      const key = normalize(alias);
+      if (existing.has(key)) continue;
+      records.push({ id: `character-supplemental-${key.replace(/\s+/g, '-')}`, name: alias, text: item.text });
+      existing.add(key);
     }
   }
 
-  return addUniqueFirstNameAliases(records);
+  return addFirstNameAliases(records);
 }
 
 function makeNamedDatabaseSections(text, type) {
   const lines = text.replace(/\r/g, '').split('\n');
   const databaseHeader = type === 'horses' ? /^HORSE DATABASE$/i : /^LIVESTOCK DATABASE$/i;
-  const fieldLine = /^[A-Za-z][A-Za-z ’'/-]*:/;
   const starts = [];
-
   for (let index = 0; index < lines.length; index += 1) {
     const candidate = lines[index].trim();
-    if (!candidate || databaseHeader.test(candidate) || fieldLine.test(candidate)) continue;
-    if (groupHeadings.has(candidate.toLowerCase())) continue;
-
     const previousBlank = index === 0 || !lines[index - 1].trim();
-    if (!previousBlank) continue;
-
-    let next = index + 1;
-    while (next < lines.length && !lines[next].trim()) next += 1;
-    const nextLine = (lines[next] || '').trim();
-    if (!nextLine) continue;
-
-    const validName = /^[A-Za-z0-9][A-Za-z0-9 .,'“”‘’"-]{0,58}$/.test(candidate);
-    const looksLikeRecord = validName && (
-      fieldLine.test(nextLine) ||
-      (type === 'livestock' && !databaseHeader.test(nextLine))
-    );
-
-    if (looksLikeRecord) starts.push(index);
+    if (!previousBlank || !candidate || databaseHeader.test(candidate) || fieldLine.test(candidate)) continue;
+    if (groupHeadings.has(normalize(candidate))) continue;
+    if (isHeading(candidate)) starts.push(index);
   }
-
-  return starts.map((start, recordIndex) => {
-    const end = starts[recordIndex + 1] ?? lines.length;
-    return {
-      id: `${type}-${recordIndex}`,
-      name: lines[start].trim(),
-      text: lines.slice(start, end).join('\n').trim(),
-    };
-  });
+  return starts.map((start, recordIndex) => ({
+    id: `${type}-${recordIndex}`,
+    name: lines[start].trim(),
+    text: lines.slice(start, starts[recordIndex + 1] ?? lines.length).join('\n').trim(),
+  }));
 }
 
 async function buildBooks() {
   const outputBooks = [];
   const errors = [];
-
   for (const book of books) {
     const fullPath = path.join(process.cwd(), 'public', 'books', book.file);
     try {
       const result = await mammoth.extractRawText({ path: fullPath });
-      const sections = makeSections(result.value, 80).map((sectionText, index) => ({
-        id: `${book.number}-${index}`,
-        text: sectionText,
-      }));
+      const sections = makeSections(result.value, 80).map((sectionText, index) => ({ id: `${book.number}-${index}`, text: sectionText }));
       outputBooks.push({ ...book, sections });
-      console.log(`Indexed Book ${book.number}: ${book.title} (${sections.length} sections)`);
     } catch (error) {
       errors.push({ book: book.title, file: book.file, error: error.message });
       outputBooks.push({ ...book, sections: [] });
     }
   }
-
   return { outputBooks, errors };
 }
 
 async function buildKnowledge() {
   const outputKnowledge = [];
   const errors = [];
-
   for (const source of knowledgeFiles) {
-    const fullPath = path.join(process.cwd(), source.file);
     try {
-      const rawText = await fs.readFile(fullPath, 'utf8');
+      const rawText = await fs.readFile(path.join(process.cwd(), source.file), 'utf8');
       let sections;
-
       if (source.type === 'characters') sections = makeCharacterSections(rawText);
       else if (source.type === 'horses' || source.type === 'livestock') sections = makeNamedDatabaseSections(rawText, source.type);
-      else sections = makeSections(rawText).map((sectionText, index) => ({
-        id: `knowledge-${source.file}-${index}`,
-        text: sectionText,
-      }));
-
+      else sections = makeSections(rawText).map((sectionText, index) => ({ id: `knowledge-${source.file}-${index}`, text: sectionText }));
       outputKnowledge.push({ ...source, rawText, sections });
-      console.log(`Indexed knowledge: ${source.title} (${sections.length} sections)`);
     } catch (error) {
       errors.push({ title: source.title, file: source.file, error: error.message });
       outputKnowledge.push({ ...source, rawText: '', sections: [] });
     }
   }
-
   return { outputKnowledge, errors };
 }
 
 async function main() {
   const { outputBooks, errors: bookErrors } = await buildBooks();
   const { outputKnowledge, errors: knowledgeErrors } = await buildKnowledge();
-  const bookOutput = `export const bookIndex = ${JSON.stringify(outputBooks, null, 2)};\n\nexport const bookIndexErrors = ${JSON.stringify(bookErrors, null, 2)};\n`;
-  const knowledgeOutput = `export const knowledgeIndex = ${JSON.stringify(outputKnowledge, null, 2)};\n\nexport const knowledgeIndexErrors = ${JSON.stringify(knowledgeErrors, null, 2)};\n`;
-
   await fs.mkdir(path.join(process.cwd(), 'src', 'data'), { recursive: true });
-  await fs.writeFile(path.join(process.cwd(), 'src', 'data', 'bookIndex.js'), bookOutput, 'utf8');
-  await fs.writeFile(path.join(process.cwd(), 'src', 'data', 'knowledgeIndex.js'), knowledgeOutput, 'utf8');
+  await fs.writeFile(path.join(process.cwd(), 'src', 'data', 'bookIndex.js'), `export const bookIndex = ${JSON.stringify(outputBooks, null, 2)};\n\nexport const bookIndexErrors = ${JSON.stringify(bookErrors, null, 2)};\n`, 'utf8');
+  await fs.writeFile(path.join(process.cwd(), 'src', 'data', 'knowledgeIndex.js'), `export const knowledgeIndex = ${JSON.stringify(outputKnowledge, null, 2)};\n\nexport const knowledgeIndexErrors = ${JSON.stringify(knowledgeErrors, null, 2)};\n`, 'utf8');
 }
 
 main().catch((error) => {
