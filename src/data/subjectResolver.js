@@ -103,6 +103,34 @@ function buildMultiSubjectAnswer(subjects, expanded) {
 function directCanonFact(text) {
   const asksIdentity = text.includes('who is') || text.includes('who was') || text.includes('tell me about');
 
+  if (asksIdentity && text.includes('whispers brother')) {
+    return {
+      type: 'fact',
+      answer: 'James “Ironjaw” Winston is Jesse “Whisper” Winston’s older brother. Ironjaw leads the larger outlaw outfit. He is dangerous and intimidating, but less impulsive than Whisper.',
+    };
+  }
+
+  if (asksIdentity && phraseIsMentioned(text, 'whisper')) {
+    return {
+      type: 'fact',
+      answer: 'Jesse “Whisper” Winston is Eli Callahan’s immediate outlaw boss and primary abuser. He recruited Eli at fifteen by exploiting Eli’s anger toward Jace, beat him repeatedly, later shot Krys, and was killed by Eli moments afterward.',
+    };
+  }
+
+  if (asksIdentity && phraseIsMentioned(text, 'hiram')) {
+    return {
+      type: 'fact',
+      answer: 'Hiram is one of Whisper Winston’s gang members. His complaints against Eli often lead to Whisper punishing and beating Eli.',
+    };
+  }
+
+  if (asksIdentity && phraseIsMentioned(text, 'hammer')) {
+    return {
+      type: 'fact',
+      answer: 'Hammer McCall is a longtime Five Oaks ranch hand, trail boss, and crew leader. He is blunt, capable, dependable, and protective of the men who ride under him.',
+    };
+  }
+
   if (asksIdentity && (phraseIsMentioned(text, 'tsula') || phraseIsMentioned(text, 'tsula red hawk') || phraseIsMentioned(text, 'tula'))) {
     return {
       type: 'fact',
