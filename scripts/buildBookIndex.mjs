@@ -29,6 +29,11 @@ const knowledgeFiles = [
 
 const supplementalCharacters = [
   {
+    name: 'Tsula Red Hawk',
+    aliases: ['Tsula', 'Tula'],
+    text: 'Tsula Red Hawk\nAge: 12\nRole: Waya Red Hawk’s nephew • Jennifer Callahan Red Hawk’s stepson\nFamily: Son of Awinita “Fawn” Red Hawk and Kanuna Sixkiller. Nephew of Waya Red Hawk. Stepson of Jennifer Callahan Red Hawk.\nCore Spine: Tsula is a twelve-year-old boy Waya has raised for the last four years after the deaths of Tsula’s parents. Waya brings him to Five Oaks, where Jennifer becomes his stepmother and the family accepts and protects him.\nHistory: Waya took Tsula in after Awinita, Waya’s sister, and Kanuna Sixkiller died. Tsula has remained with Waya ever since and moves to Five Oaks with him after Waya marries Jennifer.',
+  },
+  {
     name: 'Tavi',
     text: 'Tavi\nAge: 12\nRole: Tsula Red Hawk’s best friend\nFamily: Older sister Aiyana.\nCore Spine: Tavi is Tsula’s closest friend and part of the Cherokee community connected to Waya and Jennifer. He gives Tsula a friendship grounded in familiarity, loyalty, and shared childhood.',
   },
@@ -82,13 +87,19 @@ function makeCharacterSections(text) {
     return {
       id: `character-${recordIndex}`,
       name: lines[start].trim(),
+      aliases: [],
       text: lines.slice(start, end).join('\n').trim(),
     };
   });
   const existing = new Set(records.map((record) => record.name.toLowerCase()));
   for (const item of supplementalCharacters) {
     if (!existing.has(item.name.toLowerCase())) {
-      records.push({ id: `character-supplemental-${item.name.toLowerCase()}`, name: item.name, text: item.text });
+      records.push({
+        id: `character-supplemental-${item.name.toLowerCase().replace(/\s+/g, '-')}`,
+        name: item.name,
+        aliases: item.aliases || [],
+        text: item.text,
+      });
     }
   }
   return records;
@@ -118,6 +129,7 @@ function makeNamedDatabaseSections(text, type) {
     return {
       id: `${type}-${recordIndex}`,
       name,
+      aliases: [],
       text: lines.slice(start, end).join('\n').trim(),
     };
   });
