@@ -27,6 +27,17 @@ const knowledgeFiles = [
   { title: 'Events Database', file: 'events-database.md' },
 ];
 
+const supplementalCharacters = [
+  {
+    name: 'Tavi',
+    text: 'Tavi Age: 12 Role: Tsula Red Hawk’s best friend. Family: Older sister Aiyana. Core Spine: Tavi is Tsula’s closest friend and part of the Cherokee community connected to Waya and Jennifer. He is twelve years old and gives Tsula a friendship grounded in familiarity, loyalty, and shared childhood.',
+  },
+  {
+    name: 'Aiyana',
+    text: 'Aiyana Age: 19 Role: Tavi’s older sister. Family: Younger brother Tavi. Core Spine: Aiyana is a young Cherokee woman who showed interest in Waya before Jennifer and Waya became a couple. She belongs to the community surrounding Waya, Tsula, and the Red Hawk family.',
+  },
+];
+
 function cleanText(text) {
   return text.replace(/\s+/g, ' ').trim();
 }
@@ -72,7 +83,7 @@ function makeCharacterSections(text) {
     if (startsRecord(index)) startIndexes.push(index);
   }
 
-  return startIndexes.map((start, recordIndex) => {
+  const records = startIndexes.map((start, recordIndex) => {
     const end = startIndexes[recordIndex + 1] ?? lines.length;
     const name = lines[start].trim();
     const body = cleanText(lines.slice(start, end).join('\n'));
@@ -83,6 +94,19 @@ function makeCharacterSections(text) {
       text: `${aliases} ${body}`,
     };
   });
+
+  const existingNames = new Set(records.map((record) => record.name.toLowerCase()));
+  for (const item of supplementalCharacters) {
+    if (!existingNames.has(item.name.toLowerCase())) {
+      records.push({
+        id: `character-supplemental-${item.name.toLowerCase()}`,
+        name: item.name,
+        text: `Who is ${item.name}? Who was ${item.name}? Tell me about ${item.name}. ${item.text}`,
+      });
+    }
+  }
+
+  return records;
 }
 
 async function buildBooks() {
