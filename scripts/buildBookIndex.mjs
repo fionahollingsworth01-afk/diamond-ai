@@ -30,15 +30,15 @@ const knowledgeFiles = [
 const supplementalCharacters = [
   {
     name: 'Tavi',
-    text: 'Tavi Age: 12 Role: Tsula Red Hawk’s best friend. Family: Older sister Aiyana. Core Spine: Tavi is Tsula’s closest friend and part of the Cherokee community connected to Waya and Jennifer. He is twelve years old and gives Tsula a friendship grounded in familiarity, loyalty, and shared childhood.',
+    text: 'Tavi\nAge: 12\nRole: Tsula Red Hawk’s best friend\nFamily: Older sister Aiyana.\nCore Spine: Tavi is Tsula’s closest friend and part of the Cherokee community connected to Waya and Jennifer. He gives Tsula a friendship grounded in familiarity, loyalty, and shared childhood.',
   },
   {
     name: 'Aiyana',
-    text: 'Aiyana Age: 19 Role: Tavi’s older sister. Family: Younger brother Tavi. Core Spine: Aiyana is a young Cherokee woman who showed interest in Waya before Jennifer and Waya became a couple. She belongs to the community surrounding Waya, Tsula, and the Red Hawk family.',
+    text: 'Aiyana\nAge: 19\nRole: Tavi’s older sister\nFamily: Younger brother Tavi.\nCore Spine: Aiyana is a young Cherokee woman who showed interest in Waya before Jennifer and Waya became a couple. She belongs to the community surrounding Waya, Tsula, and the Red Hawk family.',
   },
 ];
 
-function cleanText(text) {
+function cleanText(text = '') {
   return text.replace(/\s+/g, ' ').trim();
 }
 
@@ -86,12 +86,10 @@ function makeCharacterSections(text) {
   const records = startIndexes.map((start, recordIndex) => {
     const end = startIndexes[recordIndex + 1] ?? lines.length;
     const name = lines[start].trim();
-    const body = cleanText(lines.slice(start, end).join('\n'));
-    const aliases = `Who is ${name}? Who was ${name}? Tell me about ${name}.`;
     return {
       id: `character-${recordIndex}`,
       name,
-      text: `${aliases} ${body}`,
+      text: cleanText(lines.slice(start, end).join('\n')),
     };
   });
 
@@ -101,7 +99,7 @@ function makeCharacterSections(text) {
       records.push({
         id: `character-supplemental-${item.name.toLowerCase()}`,
         name: item.name,
-        text: `Who is ${item.name}? Who was ${item.name}? Tell me about ${item.name}. ${item.text}`,
+        text: cleanText(item.text),
       });
     }
   }
@@ -140,18 +138,18 @@ async function buildKnowledge() {
   for (const source of knowledgeFiles) {
     const fullPath = path.join(process.cwd(), source.file);
     try {
-      const text = await fs.readFile(fullPath, 'utf8');
+      const rawText = await fs.readFile(fullPath, 'utf8');
       const sections = source.type === 'characters'
-        ? makeCharacterSections(text)
-        : makeSections(text).map((sectionText, index) => ({
+        ? makeCharacterSections(rawText)
+        : makeSections(rawText).map((text, index) => ({
             id: `knowledge-${source.file}-${index}`,
-            text: sectionText,
+            text,
           }));
-      outputKnowledge.push({ ...source, sections });
+      outputKnowledge.push({ ...source, rawText, sections });
       console.log(`Indexed knowledge: ${source.title} (${sections.length} sections)`);
     } catch (error) {
       errors.push({ title: source.title, file: source.file, error: error.message });
-      outputKnowledge.push({ ...source, sections: [] });
+      outputKnowledge.push({ ...source, rawText: '', sections: [] });
       console.warn(`Could not index ${source.title}: ${error.message}`);
     }
   }
