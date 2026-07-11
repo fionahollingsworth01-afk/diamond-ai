@@ -103,6 +103,20 @@ function buildMultiSubjectAnswer(subjects, expanded) {
 function directCanonFact(text) {
   const asksIdentity = text.includes('who is') || text.includes('who was') || text.includes('tell me about');
 
+  if (asksIdentity && text.includes('wayas uncle')) {
+    return {
+      type: 'fact',
+      answer: 'Galilahi Red Hawk is Waya Red Hawk’s uncle. He is also part of Tsula Red Hawk’s extended family.',
+    };
+  }
+
+  if (asksIdentity && text.includes('wayas aunt')) {
+    return {
+      type: 'fact',
+      answer: 'Salali Red Hawk is Waya Red Hawk’s aunt. She is also part of Tsula Red Hawk’s extended family.',
+    };
+  }
+
   if (asksIdentity && text.includes('whispers brother')) {
     return {
       type: 'fact',
