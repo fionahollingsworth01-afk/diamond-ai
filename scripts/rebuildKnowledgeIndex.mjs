@@ -33,6 +33,44 @@ function heading(line) {
   return /^[A-ZÀ-ÖØ-Ý0-9][A-Za-zÀ-ÖØ-öø-ÿ0-9 .,'“”‘’"()&/-]+$/.test(text);
 }
 
+function addAliases(records, type) {
+  const exact = new Set(records.map((record) => normalize(record.name)));
+  const candidates = new Map();
+
+  function offer(alias, record, score) {
+    const key = normalize(alias);
+    if (!key || exact.has(key)) return;
+    const current = candidates.get(key);
+    if (!current || score > current.score) candidates.set(key, { alias: clean(alias), record, score });
+  }
+
+  for (const record of records) {
+    const strength = (record.text.match(/\n[A-Za-z][A-Za-z ’'/-]*:/g) || []).length * 100 + record.text.length;
+    const first = record.name.trim().split(/\s+/)[0];
+    offer(first, record, strength);
+
+    // Nicknames in headings such as Jesse “Whisper” Winston and James "Ironjaw" Winston.
+    for (const match of record.name.matchAll(/[“"]([^”"]+)[”"]/g)) offer(match[1], record, strength + 1000);
+    for (const match of record.name.matchAll(/[‘']([^’']+)[’']/g)) offer(match[1], record, strength + 1000);
+
+    // Parenthetical aliases, when the parentheses contain a short alias rather than an explanation.
+    for (const match of record.name.matchAll(/\(([^)]+)\)/g)) {
+      const value = clean(match[1]);
+      if (value.split(/\s+/).length <= 3 && !/wife|husband|mother|father|sister|brother|aunt|uncle/i.test(value)) {
+        offer(value, record, strength + 500);
+      }
+    }
+  }
+
+  for (const [key, { alias, record }] of candidates) {
+    if (exact.has(key)) continue;
+    records.push({ id: `${type}-alias-${key.replace(/\s+/g, '-')}`, name: alias, text: record.text });
+    exact.add(key);
+  }
+
+  return records;
+}
+
 function parseNamedRecords(rawText, type) {
   const lines = rawText.replace(/\r/g, '').split('\n');
   const starts = [];
@@ -46,7 +84,7 @@ function parseNamedRecords(rawText, type) {
     while (next < lines.length && !clean(lines[next])) next += 1;
     const nextLine = clean(lines[next]);
 
-    const strongRecord = field.test(nextLine) || /^(role|given name|age|born|owner|breed|type|family|core spine|background|history):/i.test(nextLine);
+    const strongRecord = field.test(nextLine) || /^(role|given name|age|born|owner|breed|type|family|core spine|background|history|appears):/i.test(nextLine);
     if (strongRecord) starts.push(i);
   }
 
@@ -56,7 +94,7 @@ function parseNamedRecords(rawText, type) {
     text: lines.slice(start, starts[index + 1] ?? lines.length).join('\n').trim(),
   }));
 
-  // Compact entries such as "Henry Richards  Emma's father" and outlaw list entries.
+  // Compact entries such as "Henry Richards  Emma's father" and short outlaw entries.
   for (let i = 0; i < lines.length; i += 1) {
     const raw = lines[i].trim();
     if (!raw || field.test(raw)) continue;
@@ -67,24 +105,7 @@ function parseNamedRecords(rawText, type) {
     records.push({ id: `${type}-inline-${i}`, name, text: `${name}\n${clean(match[2])}` });
   }
 
-  // Build first-name aliases. Prefer the strongest full dossier when several lines share a first name.
-  const byFirst = new Map();
-  for (const record of records) {
-    const first = normalize(record.name).split(' ')[0];
-    if (!first) continue;
-    const score = (record.text.match(/\n[A-Za-z][A-Za-z ’'/-]*:/g) || []).length * 100 + record.text.length;
-    const current = byFirst.get(first);
-    if (!current || score > current.score) byFirst.set(first, { record, score });
-  }
-
-  const exact = new Set(records.map((r) => normalize(r.name)));
-  for (const [first, { record }] of byFirst) {
-    if (exact.has(first)) continue;
-    records.push({ id: `${type}-alias-${first}`, name: record.name.split(/\s+/)[0], text: record.text });
-    exact.add(first);
-  }
-
-  return records;
+  return addAliases(records, type);
 }
 
 function makeReferenceSections(rawText, file) {
