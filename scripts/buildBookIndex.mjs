@@ -18,7 +18,7 @@ const books = [
 ];
 
 const knowledgeFiles = [
-  { title: 'Character Database', file: 'knowledge' },
+  { title: 'Character Database', file: 'knowledge', type: 'characters' },
   { title: 'Horse Database', file: 'horses-database.md' },
   { title: 'Livestock Database', file: 'livestock-database.md' },
   { title: 'Places Database', file: 'places-database.md' },
@@ -55,6 +55,36 @@ function makeSections(text, minimumLength = 45) {
   return sections.slice(0, 2200);
 }
 
+function makeCharacterSections(text) {
+  const lines = text.replace(/\r/g, '').split('\n');
+  const startsRecord = (index) => {
+    const candidate = (lines[index] || '').trim();
+    if (!candidate || candidate.includes(':')) return false;
+    if (/^(character-database\.md|character base)$/i.test(candidate)) return false;
+
+    let next = index + 1;
+    while (next < lines.length && !lines[next].trim()) next += 1;
+    return /^(given name|age|born|role):/i.test((lines[next] || '').trim());
+  };
+
+  const startIndexes = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    if (startsRecord(index)) startIndexes.push(index);
+  }
+
+  return startIndexes.map((start, recordIndex) => {
+    const end = startIndexes[recordIndex + 1] ?? lines.length;
+    const name = lines[start].trim();
+    const body = cleanText(lines.slice(start, end).join('\n'));
+    const aliases = `Who is ${name}? Who was ${name}? Tell me about ${name}.`;
+    return {
+      id: `character-${recordIndex}`,
+      name,
+      text: `${aliases} ${body}`,
+    };
+  });
+}
+
 async function buildBooks() {
   const outputBooks = [];
   const errors = [];
@@ -87,10 +117,12 @@ async function buildKnowledge() {
     const fullPath = path.join(process.cwd(), source.file);
     try {
       const text = await fs.readFile(fullPath, 'utf8');
-      const sections = makeSections(text).map((sectionText, index) => ({
-        id: `knowledge-${source.file}-${index}`,
-        text: sectionText,
-      }));
+      const sections = source.type === 'characters'
+        ? makeCharacterSections(text)
+        : makeSections(text).map((sectionText, index) => ({
+            id: `knowledge-${source.file}-${index}`,
+            text: sectionText,
+          }));
       outputKnowledge.push({ ...source, sections });
       console.log(`Indexed knowledge: ${source.title} (${sections.length} sections)`);
     } catch (error) {
