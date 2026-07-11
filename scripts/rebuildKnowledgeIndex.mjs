@@ -1,8 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const sources = [
-  { title: 'Character Database', file: 'knowledge', type: 'characters' },
+const fixedSources = [
   { title: 'Horse Database', file: 'horses-database.md', type: 'horses' },
   { title: 'Livestock Database', file: 'livestock-database.md', type: 'livestock' },
   { title: 'Places Database', file: 'places-database.md', type: 'reference' },
@@ -27,6 +26,13 @@ function normalize(value = '') {
   return clean(value).toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+function titleFromFile(file) {
+  return path.basename(file, path.extname(file))
+    .split(/[-_]+/)
+    .map((word) => word ? word[0].toUpperCase() + word.slice(1) : '')
+    .join(' ');
+}
+
 function heading(line) {
   const text = clean(line);
   if (!text || text.length > 100 || text.includes(':') || skip.has(normalize(text))) return false;
@@ -39,26 +45,23 @@ function addAlias(records, alias, record, type) {
   records.push({ id: `${type}-alias-${key.replace(/\s+/g, '-')}`, name: clean(alias), text: record.text });
 }
 
-function parseNamedRecords(rawText, type) {
+function parseNamedRecords(rawText, type, fileKey = '') {
   const lines = rawText.replace(/\r/g, '').split('\n');
   const starts = [];
 
-  // The master file mixes long dossiers with short prose entries. Every blank-separated
-  // heading is therefore a record start; requiring a specific next field silently lost
-  // outlaws, relatives, ranch hands, and other short entries.
   for (let i = 0; i < lines.length; i += 1) {
     const text = clean(lines[i]);
     const previousBlank = i === 0 || !clean(lines[i - 1]);
     if (previousBlank && heading(text)) starts.push(i);
   }
 
+  const prefix = `${type}-${normalize(fileKey || 'database').replace(/\s+/g, '-')}`;
   const records = starts.map((start, index) => ({
-    id: `${type}-${index}`,
+    id: `${prefix}-${index}`,
     name: clean(lines[start]),
     text: lines.slice(start, starts[index + 1] ?? lines.length).join('\n').trim(),
   })).filter((record) => record.text && !skip.has(normalize(record.name)));
 
-  // Catch compact entries written as "Name  description" on one line.
   for (let i = 0; i < lines.length; i += 1) {
     const raw = lines[i].trim();
     if (!raw || field.test(raw)) continue;
@@ -66,10 +69,9 @@ function parseNamedRecords(rawText, type) {
     if (!match) continue;
     const name = clean(match[1]);
     if (skip.has(normalize(name)) || records.some((r) => normalize(r.name) === normalize(name))) continue;
-    records.push({ id: `${type}-inline-${i}`, name, text: `${name}\n${clean(match[2])}` });
+    records.push({ id: `${prefix}-inline-${i}`, name, text: `${name}\n${clean(match[2])}` });
   }
 
-  // Create aliases from first names, quoted nicknames, and parenthetical aliases.
   const byFirst = new Map();
   for (const record of records) {
     const first = normalize(record.name).split(' ')[0];
@@ -78,7 +80,7 @@ function parseNamedRecords(rawText, type) {
     const current = byFirst.get(first);
     if (!current || score > current.score) byFirst.set(first, { record, score });
   }
-  for (const [first, { record }] of byFirst) addAlias(records, record.name.split(/\s+/)[0], record, type);
+  for (const [, { record }] of byFirst) addAlias(records, record.name.split(/\s+/)[0], record, type);
 
   for (const record of [...records]) {
     for (const match of record.name.matchAll(/[“"]([^”"]+)[”"]/g)) addAlias(records, match[1], record, type);
@@ -100,16 +102,33 @@ function makeReferenceSections(rawText, file) {
   }));
 }
 
+async function discoverCharacterSources() {
+  const knowledgeDir = path.join(process.cwd(), 'knowledge');
+  try {
+    const entries = await fs.readdir(knowledgeDir, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.md'))
+      .map((entry) => ({
+        title: titleFromFile(entry.name),
+        file: path.posix.join('knowledge', entry.name),
+        type: 'characters',
+      }));
+  } catch {
+    return [];
+  }
+}
+
 async function main() {
   const output = [];
   const errors = [];
+  const sources = [...await discoverCharacterSources(), ...fixedSources];
 
   for (const source of sources) {
     try {
       const rawText = await fs.readFile(path.join(process.cwd(), source.file), 'utf8');
       const sections = source.type === 'reference'
         ? makeReferenceSections(rawText, source.file)
-        : parseNamedRecords(rawText, source.type);
+        : parseNamedRecords(rawText, source.type, source.file);
       output.push({ ...source, rawText, sections });
       console.log(`Reindexed ${source.title}: ${sections.length} exact records`);
     } catch (error) {
