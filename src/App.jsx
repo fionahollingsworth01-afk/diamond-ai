@@ -31,7 +31,23 @@ function cleanText(text = '') {
 }
 
 function normalizedText(text = '') {
-  return text.toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9\s]/g, ' ');
+  return cleanText(text)
+    .toLowerCase()
+    .replace(/[’']/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function requestedSubject(question) {
+  return cleanText(question)
+    .replace(/^(who|what)\s+(is|was|are|were)\s+/i, '')
+    .replace(/^tell me (everything )?about\s+/i, '')
+    .replace(/^show me\s+/i, '')
+    .replace(/(?:'s|’s)?\s+(full\s+)?(dossier|profile|entry)$/i, '')
+    .replace(/\s+(dossier|profile|entry)$/i, '')
+    .replace(/[?!.]+$/g, '')
+    .trim();
 }
 
 function questionTerms(question) {
@@ -54,7 +70,7 @@ function wantsPassage(question) {
 }
 
 function wantsExpandedAnswer(question) {
-  const text = normalizedText(question).trim();
+  const text = normalizedText(question);
   return text.startsWith('tell me about') || text.startsWith('why') ||
     text.startsWith('how') || text.includes('relationship') ||
     text.includes('bond') || text.includes('deep');
@@ -62,7 +78,7 @@ function wantsExpandedAnswer(question) {
 
 function isDirectQuestion(question) {
   return /^(who|what|when|where|why|how|did|does|do|is|are|was|were)\b/.test(
-    normalizedText(question).trim(),
+    normalizedText(question),
   );
 }
 
@@ -78,10 +94,48 @@ function legacyKnowledgeAnswer(question) {
     knowledgeEntryAnswer(findCharacterKnowledge(question), question);
 }
 
+function exactCharacterMatch(question, knowledge) {
+  const subject = normalizedText(requestedSubject(question));
+  if (!subject) return null;
+
+  for (const source of knowledge) {
+    if (source.type !== 'characters') continue;
+    const exact = (source.sections || []).find((part) => normalizedText(part.name) === subject);
+    if (exact) return { ...exact, sourceLabel: source.title, score: 10000 };
+  }
+  return null;
+}
+
+function exactRawLineMatch(question, knowledge) {
+  const subject = requestedSubject(question);
+  const normalizedSubject = normalizedText(subject);
+  if (!normalizedSubject) return null;
+
+  for (const source of knowledge) {
+    const lines = String(source.rawText || '').replace(/\r/g, '').split('\n');
+    for (const rawLine of lines) {
+      const line = cleanText(rawLine);
+      const normalizedLine = normalizedText(line);
+      if (!line || normalizedLine === normalizedSubject) continue;
+      if (normalizedLine.startsWith(`${normalizedSubject} `)) {
+        return {
+          id: `raw-${source.file}-${normalizedSubject}`,
+          name: subject,
+          text: line,
+          sourceLabel: source.title,
+          score: 9000,
+          simpleLine: true,
+        };
+      }
+    }
+  }
+  return null;
+}
+
 function searchCollection(question, collection, labelKey) {
   const terms = questionTerms(question);
   if (!terms.length || !collection.length) return [];
-  const phrase = cleanText(normalizedText(question));
+  const phrase = normalizedText(question);
   const results = [];
 
   for (const source of collection) {
@@ -109,6 +163,10 @@ function searchBooks(question, books) {
 }
 
 function searchKnowledge(question, knowledge) {
+  const exactCharacter = exactCharacterMatch(question, knowledge);
+  if (exactCharacter) return [exactCharacter];
+  const exactLine = exactRawLineMatch(question, knowledge);
+  if (exactLine) return [exactLine];
   return searchCollection(question, knowledge, 'title');
 }
 
@@ -126,19 +184,18 @@ function firstSentences(text, count = 2) {
   return cleanText(sentences.slice(0, count).join(' '));
 }
 
-function requestedSubject(question) {
-  return cleanText(question)
-    .replace(/^(who|what)\s+(is|was|are|were)\s+/i, '')
-    .replace(/^tell me about\s+/i, '')
-    .replace(/[?!.]+$/g, '');
-}
-
 function conversationalKnowledgeAnswer(match, question) {
   if (!match?.text) return '';
   if (wantsFullRecord(question)) return match.text;
 
+  const subject = match.name || requestedSubject(question) || 'This entry';
   const text = cleanText(match.text);
-  const subject = requestedSubject(question) || 'This entry';
+
+  if (match.simpleLine) {
+    const remainder = text.replace(new RegExp(`^${subject.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*`, 'i'), '');
+    return remainder ? `${subject} is ${remainder.replace(/^is\s+/i, '')}` : text;
+  }
+
   const age = extractField(text, 'Age', [
     'Born', 'Role', 'Family', 'Core Spine', 'Background Foundation', 'Background',
     'Type', 'Breed', 'Color', 'Temperament', 'History',
