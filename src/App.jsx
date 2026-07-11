@@ -3,7 +3,6 @@ import { canonRules, characters, families } from './data/diamondData.js';
 import { bookIndex, bookIndexErrors } from './data/bookIndex.js';
 import { knowledgeIndex, knowledgeIndexErrors } from './data/knowledgeIndex.js';
 import { relationshipGraph } from './data/relationshipGraph.js';
-import { findCharacterKnowledge } from './data/characterKnowledge.js';
 import { findEventKnowledge } from './data/eventKnowledge.js';
 import { findPlaceKnowledge } from './data/placeKnowledge.js';
 import { findTimelineKnowledge } from './data/timelineKnowledge.js';
@@ -69,26 +68,11 @@ function wantsExpandedAnswer(question) {
     text.includes('bond') || text.includes('deep');
 }
 
-function isDirectQuestion(question) {
-  return /^(who|what|when|where|why|how|did|does|do|is|are|was|were)\b/.test(normalizedText(question));
-}
-
 function isEntityQuestion(question) {
   const text = normalizedText(question);
   return /^(who|what)\s+(is|was|are|were)\b/.test(text) ||
-    text.startsWith('tell me about ') || text.startsWith('show me ');
-}
-
-function knowledgeEntryAnswer(entry, question) {
-  if (!entry) return '';
-  return wantsExpandedAnswer(question) ? entry.full : entry.short;
-}
-
-function legacyKnowledgeAnswer(question) {
-  return knowledgeEntryAnswer(findPlaceKnowledge(question), question) ||
-    knowledgeEntryAnswer(findEventKnowledge(question), question) ||
-    knowledgeEntryAnswer(findTimelineKnowledge(question), question) ||
-    knowledgeEntryAnswer(findCharacterKnowledge(question), question);
+    text.startsWith('tell me about ') ||
+    text.startsWith('show me ');
 }
 
 function exactEntityMatch(question, knowledge) {
@@ -130,18 +114,30 @@ function searchCollection(question, collection, labelKey) {
 }
 
 function searchBooks(question, books) {
-  return searchCollection(question, books, 'title').map((match) => ({ ...match, bookTitle: match.sourceLabel }));
+  return searchCollection(question, books, 'title').map((match) => ({
+    ...match,
+    bookTitle: match.sourceLabel,
+  }));
 }
 
 function exactRecordAnswer(match) {
   if (!match?.text) return '';
-  const source = match.sourceLabel ? `Source: ${match.sourceLabel}\n\n` : '';
-  return `${source}${String(match.text).trim()}`;
+  return String(match.text).trim();
 }
 
 function firstSentences(text, count = 2) {
   const sentences = cleanText(text).match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [];
   return cleanText(sentences.slice(0, count).join(' '));
+}
+
+function referenceAnswer(question) {
+  const place = findPlaceKnowledge(question);
+  if (place) return wantsExpandedAnswer(question) ? place.full : place.short;
+  const event = findEventKnowledge(question);
+  if (event) return wantsExpandedAnswer(question) ? event.full : event.short;
+  const timeline = findTimelineKnowledge(question);
+  if (timeline) return wantsExpandedAnswer(question) ? timeline.full : timeline.short;
+  return '';
 }
 
 function buildAnswer(question, books, knowledge) {
@@ -150,11 +146,16 @@ function buildAnswer(question, books, knowledge) {
   const exact = exactEntityMatch(question, knowledge);
   if (exact) return exactRecordAnswer(exact);
 
+  // For a direct name lookup, never substitute a record that merely mentions that name.
+  if (isEntityQuestion(question)) {
+    return 'I could not find an exact canon record for that name. I will not substitute a different character, horse, bull, cow, or place.';
+  }
+
   const resolved = resolveSubject(question);
   if (resolved?.answer) return resolved.answer;
 
-  const legacy = legacyKnowledgeAnswer(question);
-  if (legacy) return legacy;
+  const reference = referenceAnswer(question);
+  if (reference) return reference;
 
   const bookMatches = searchBooks(question, books);
   if (bookMatches.length && wantsPassage(question)) {
@@ -162,9 +163,6 @@ function buildAnswer(question, books, knowledge) {
   }
   if (bookMatches.length && wantsExpandedAnswer(question)) {
     return `According to ${bookMatches[0].bookTitle}, ${firstSentences(bookMatches[0].text, 4)}`;
-  }
-  if (isEntityQuestion(question) || isDirectQuestion(question)) {
-    return 'I could not find an exact canon record for that name. I will not substitute a different character, horse, or animal.';
   }
   if (bookMatches.length) {
     return 'I found manuscript support, but not a clean direct answer. Ask “show me the passage” for the excerpt.';
@@ -189,6 +187,7 @@ function DiamondFace({ speaking }) {
       : 'inset 0 0 35px rgba(255,255,255,.09), 0 0 38px rgba(233,182,214,.34)',
     background: '#140f12', filter: speaking ? 'brightness(1.06)' : 'none',
   };
+
   return (
     <section className="diamondPortraitShell" aria-label="Diamond assistant portrait">
       <div className="portraitGlow" />
@@ -206,11 +205,8 @@ function App() {
 
   const loadedBooks = bookIndex.filter((book) => (book.sections || []).length > 0);
   const loadedKnowledge = knowledgeIndex.filter((source) => (source.sections || []).length > 0);
-  const answer = useMemo(
-    () => buildAnswer(question, loadedBooks, loadedKnowledge),
-    [question, loadedBooks, loadedKnowledge],
-  );
   const exact = useMemo(() => exactEntityMatch(question, loadedKnowledge), [question, loadedKnowledge]);
+  const answer = useMemo(() => buildAnswer(question, loadedBooks, loadedKnowledge), [question, loadedBooks, loadedKnowledge]);
   const matches = useMemo(
     () => wantsPassage(question) && !exact ? searchBooks(question, loadedBooks) : [],
     [question, loadedBooks, exact],
@@ -277,7 +273,7 @@ function App() {
 
       {activeTab === 'Books' && <section className="gridPanel">{bookIndex.map((book) => <article className="card" key={book.file}><h2>Book {book.number}</h2><h3>{book.title}</h3><p>{(book.sections || []).length ? `${book.sections.length} searchable sections indexed.` : 'Not indexed yet.'}</p></article>)}{bookIndexErrors.map((error) => <article className="card" key={error.file}><h3>Index warning</h3><p>{error.book}: {error.error}</p></article>)}{knowledgeIndexErrors.map((error) => <article className="card" key={error.file}><h3>Knowledge warning</h3><p>{error.title}: {error.error}</p></article>)}</section>}
 
-      {activeTab === 'Characters' && <section className="gridPanel">{characters.map((character) => <article className="card" key={character.name}><h2>{character.name}</h2><p className="muted">{character.givenName}</p><h3>{character.role}</h3><p>{character.core}</p><p><strong>Horse:</strong> {character.horse} — {character.horseEra}</p><p><strong>Weapons:</strong> {character.weapons.join(', ')}</p></article>)}</section>}
+      {activeTab === 'Characters' && <section className="gridPanel">{characters.map((character) => <article className="card" key={character.name}><h2>{character.name}</h2><p className="muted">{character.givenName}</p><h3>{character.role}</h3><p>{character.core}</p>{character.horse && <p><strong>Horse:</strong> {character.horse}{character.horseEra ? ` — ${character.horseEra}` : ''}</p>}{Array.isArray(character.weapons) && <p><strong>Weapons:</strong> {character.weapons.join(', ')}</p>}</article>)}</section>}
 
       {activeTab === 'Relationships' && <section className="gridPanel"><article className="card"><h2>Relationship Graph</h2><p>{relationshipGraph.nodes.length} subjects and {relationshipGraph.edges.length} direct canon links are available to Diamond’s resolver.</p></article>{relationshipGraph.edges.map((item) => <article className="card" key={`${item.source}-${item.target}`}><h2>{item.title}</h2><p>{item.summary}</p></article>)}</section>}
 
