@@ -162,6 +162,13 @@ function directCanonFact(text) {
   return null;
 }
 
+function isIdentityQuestion(text) {
+  return /^(who|what)\s+(is|was|are|were)\b/.test(text) ||
+    text.startsWith('tell me about ') ||
+    text.startsWith('tell me everything about ') ||
+    text.startsWith('show me ');
+}
+
 export function resolveSubject(question) {
   const text = normalizeQuestion(question).replace(/\s+/g, ' ').trim();
   const expanded = wantsExpandedAnswer(question);
@@ -212,6 +219,13 @@ export function resolveSubject(question) {
   if (text.includes('luke') && text.includes('horse')) return { type: 'fact', answer: 'Luke’s outlaw-era horse is Cinder.' };
   if (text.includes('krys') && (text.includes('weapon') || text.includes('rifle') || text.includes('derringer'))) return { type: 'fact', answer: "Krys carries a Colt Single Action Army, a pocket Derringer, and her pa’s Winchester 1873." };
   if (text.includes('jace') && (text.includes('weapon') || text.includes('pistol') || text.includes('rifle'))) return { type: 'fact', answer: 'Jace carries a Colt Single Action Army, a Winchester Model 1873, a working belt knife, and a small hideout pistol.' };
+
+  if (isIdentityQuestion(text)) {
+    return {
+      type: 'unknown-entity',
+      answer: 'I could not find an exact canon record for that name. I will not substitute a different character, horse, bull, cow, or place.',
+    };
+  }
 
   return null;
 }
