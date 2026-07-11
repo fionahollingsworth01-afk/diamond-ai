@@ -87,6 +87,33 @@ function looksLikePersonHeading(candidate, nextLine, previousBlank) {
   return /^[A-Z][A-Za-z0-9 .,'“”‘’"-]+$/.test(candidate);
 }
 
+function addUniqueFirstNameAliases(records) {
+  const existingNames = new Set(records.map((record) => record.name.toLowerCase()));
+  const firstNameCounts = new Map();
+
+  for (const record of records) {
+    const firstName = record.name.trim().split(/\s+/)[0];
+    const key = firstName.toLowerCase();
+    firstNameCounts.set(key, (firstNameCounts.get(key) || 0) + 1);
+  }
+
+  const aliases = [];
+  for (const record of records) {
+    const firstName = record.name.trim().split(/\s+/)[0];
+    const key = firstName.toLowerCase();
+    if (!firstName || firstNameCounts.get(key) !== 1 || existingNames.has(key)) continue;
+    aliases.push({
+      id: `character-first-name-${key.replace(/[^a-z0-9]+/g, '-')}`,
+      name: firstName,
+      text: record.text,
+    });
+    existingNames.add(key);
+  }
+
+  records.push(...aliases);
+  return records;
+}
+
 function makeCharacterSections(text) {
   const lines = text.replace(/\r/g, '').split('\n');
   const starts = [];
@@ -132,7 +159,7 @@ function makeCharacterSections(text) {
     }
   }
 
-  return records;
+  return addUniqueFirstNameAliases(records);
 }
 
 function makeNamedDatabaseSections(text, type) {
