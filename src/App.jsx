@@ -22,12 +22,12 @@ const tabs = [
 const stopWords = new Set([
   'what', 'was', 'were', 'the', 'did', 'does', 'who', 'where', 'when', 'how',
   'and', 'for', 'with', 'from', 'that', 'this', 'have', 'has', 'his', 'her',
-  'they', 'them', 'their', 'horse', 'ride', 'rode', 'named', 'name', 'tell',
-  'show', 'find', 'about',
+  'they', 'them', 'their', 'horse', 'bull', 'cow', 'ride', 'rode', 'named',
+  'name', 'tell', 'show', 'find', 'about',
 ]);
 
 function cleanText(text = '') {
-  return text.replace(/\s+/g, ' ').trim();
+  return String(text).replace(/\s+/g, ' ').trim();
 }
 
 function normalizedText(text = '') {
@@ -44,8 +44,8 @@ function requestedSubject(question) {
     .replace(/^(who|what)\s+(is|was|are|were)\s+/i, '')
     .replace(/^tell me (everything )?about\s+/i, '')
     .replace(/^show me\s+/i, '')
-    .replace(/(?:'s|’s)?\s+(full\s+)?(dossier|profile|entry)$/i, '')
-    .replace(/\s+(dossier|profile|entry)$/i, '')
+    .replace(/(?:'s|’s)?\s+(full\s+)?(dossier|profile|entry|record)$/i, '')
+    .replace(/\s+(dossier|profile|entry|record)$/i, '')
     .replace(/[?!.]+$/g, '')
     .trim();
 }
@@ -54,13 +54,6 @@ function questionTerms(question) {
   return normalizedText(question)
     .split(/\s+/)
     .filter((word) => word.length > 2 && !stopWords.has(word));
-}
-
-function wantsFullRecord(question) {
-  const text = normalizedText(question);
-  return text.includes('dossier') || text.includes('full profile') ||
-    text.includes('full entry') || text.includes('complete entry') ||
-    text.includes('everything about') || text.includes('entire entry');
 }
 
 function wantsPassage(question) {
@@ -77,9 +70,13 @@ function wantsExpandedAnswer(question) {
 }
 
 function isDirectQuestion(question) {
-  return /^(who|what|when|where|why|how|did|does|do|is|are|was|were)\b/.test(
-    normalizedText(question),
-  );
+  return /^(who|what|when|where|why|how|did|does|do|is|are|was|were)\b/.test(normalizedText(question));
+}
+
+function isEntityQuestion(question) {
+  const text = normalizedText(question);
+  return /^(who|what)\s+(is|was|are|were)\b/.test(text) ||
+    text.startsWith('tell me about ') || text.startsWith('show me ');
 }
 
 function knowledgeEntryAnswer(entry, question) {
@@ -94,39 +91,16 @@ function legacyKnowledgeAnswer(question) {
     knowledgeEntryAnswer(findCharacterKnowledge(question), question);
 }
 
-function exactCharacterMatch(question, knowledge) {
+function exactEntityMatch(question, knowledge) {
   const subject = normalizedText(requestedSubject(question));
   if (!subject) return null;
 
-  for (const source of knowledge) {
-    if (source.type !== 'characters') continue;
-    const exact = (source.sections || []).find((part) => normalizedText(part.name) === subject);
-    if (exact) return { ...exact, sourceLabel: source.title, score: 10000 };
-  }
-  return null;
-}
-
-function exactRawLineMatch(question, knowledge) {
-  const subject = requestedSubject(question);
-  const normalizedSubject = normalizedText(subject);
-  if (!normalizedSubject) return null;
-
-  for (const source of knowledge) {
-    const lines = String(source.rawText || '').replace(/\r/g, '').split('\n');
-    for (const rawLine of lines) {
-      const line = cleanText(rawLine);
-      const normalizedLine = normalizedText(line);
-      if (!line || normalizedLine === normalizedSubject) continue;
-      if (normalizedLine.startsWith(`${normalizedSubject} `)) {
-        return {
-          id: `raw-${source.file}-${normalizedSubject}`,
-          name: subject,
-          text: line,
-          sourceLabel: source.title,
-          score: 9000,
-          simpleLine: true,
-        };
-      }
+  const priority = ['characters', 'horses', 'livestock', 'reference'];
+  for (const type of priority) {
+    for (const source of knowledge) {
+      if (source.type !== type) continue;
+      const exact = (source.sections || []).find((part) => normalizedText(part.name) === subject);
+      if (exact) return { ...exact, sourceLabel: source.title, sourceType: source.type };
     }
   }
   return null;
@@ -156,27 +130,13 @@ function searchCollection(question, collection, labelKey) {
 }
 
 function searchBooks(question, books) {
-  return searchCollection(question, books, 'title').map((match) => ({
-    ...match,
-    bookTitle: match.sourceLabel,
-  }));
+  return searchCollection(question, books, 'title').map((match) => ({ ...match, bookTitle: match.sourceLabel }));
 }
 
-function searchKnowledge(question, knowledge) {
-  const exactCharacter = exactCharacterMatch(question, knowledge);
-  if (exactCharacter) return [exactCharacter];
-  const exactLine = exactRawLineMatch(question, knowledge);
-  if (exactLine) return [exactLine];
-  return searchCollection(question, knowledge, 'title');
-}
-
-function extractField(text, label, nextLabels) {
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const next = nextLabels
-    .map((item) => item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-    .join('|');
-  const match = text.match(new RegExp(`${escaped}:\\s*(.*?)(?=\\s+(?:${next}):|$)`, 'i'));
-  return cleanText(match?.[1] || '');
+function exactRecordAnswer(match) {
+  if (!match?.text) return '';
+  const source = match.sourceLabel ? `Source: ${match.sourceLabel}\n\n` : '';
+  return `${source}${String(match.text).trim()}`;
 }
 
 function firstSentences(text, count = 2) {
@@ -184,59 +144,11 @@ function firstSentences(text, count = 2) {
   return cleanText(sentences.slice(0, count).join(' '));
 }
 
-function conversationalKnowledgeAnswer(match, question) {
-  if (!match?.text) return '';
-  if (wantsFullRecord(question)) return match.text;
-
-  const subject = match.name || requestedSubject(question) || 'This entry';
-  const text = cleanText(match.text);
-
-  if (match.simpleLine) {
-    const remainder = text.replace(new RegExp(`^${subject.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*`, 'i'), '');
-    return remainder ? `${subject} is ${remainder.replace(/^is\s+/i, '')}` : text;
-  }
-
-  const age = extractField(text, 'Age', [
-    'Born', 'Role', 'Family', 'Core Spine', 'Background Foundation', 'Background',
-    'Type', 'Breed', 'Color', 'Temperament', 'History',
-  ]);
-  const role = extractField(text, 'Role', [
-    'Family', 'Core Spine', 'Background Foundation', 'Background', 'Core Formation',
-    'Type', 'Breed', 'Color', 'Temperament', 'History',
-  ]);
-  const core = extractField(text, 'Core Spine', [
-    'Background Foundation', 'Background', 'Core Formation', 'Core Beliefs',
-    'Greatest Fear', 'Greatest Strength', 'Fatal Flaw', 'Psychological Markers', 'History',
-  ]);
-  const background = extractField(text, 'Background Foundation', [
-    'Core Formation', 'Core Beliefs', 'Greatest Fear', 'Greatest Strength',
-    'Fatal Flaw', 'Psychological Markers', 'Relationship With', 'Locked Thematic Core',
-  ]) || extractField(text, 'Background', [
-    'Core Formation', 'Core Beliefs', 'Greatest Fear', 'Greatest Strength',
-    'Fatal Flaw', 'Psychological Markers', 'Relationship With', 'Locked Thematic Core',
-  ]);
-  const history = extractField(text, 'History', [
-    'Core Formation', 'Core Beliefs', 'Greatest Fear', 'Greatest Strength',
-    'Fatal Flaw', 'Psychological Markers', 'Relationship With', 'Locked Thematic Core',
-  ]);
-
-  let opening = age ? `${subject} is ${age} years old` : `${subject} is part of the Five Oaks canon`;
-  if (role) opening += ` and is ${role.replace(/\s*•\s*/g, ', ')}`;
-
-  const details = [
-    firstSentences(core, 2),
-    firstSentences(background || history, wantsExpandedAnswer(question) ? 3 : 2),
-  ].filter(Boolean);
-
-  if (!details.length) details.push(firstSentences(text, wantsExpandedAnswer(question) ? 4 : 2));
-  return `${opening}. ${details.join(' ')}`.replace(/\s+/g, ' ').trim();
-}
-
 function buildAnswer(question, books, knowledge) {
   if (!question.trim()) return '';
 
-  const knowledgeMatches = searchKnowledge(question, knowledge);
-  if (knowledgeMatches.length) return conversationalKnowledgeAnswer(knowledgeMatches[0], question);
+  const exact = exactEntityMatch(question, knowledge);
+  if (exact) return exactRecordAnswer(exact);
 
   const resolved = resolveSubject(question);
   if (resolved?.answer) return resolved.answer;
@@ -251,11 +163,11 @@ function buildAnswer(question, books, knowledge) {
   if (bookMatches.length && wantsExpandedAnswer(question)) {
     return `According to ${bookMatches[0].bookTitle}, ${firstSentences(bookMatches[0].text, 4)}`;
   }
-  if (isDirectQuestion(question)) {
-    return 'I could not find a direct answer for that in the current Five Oaks canon yet.';
+  if (isEntityQuestion(question) || isDirectQuestion(question)) {
+    return 'I could not find an exact canon record for that name. I will not substitute a different character, horse, or animal.';
   }
   if (bookMatches.length) {
-    return 'I found book support, but not a clean direct answer yet. Ask “show me the passage” if you want the excerpt.';
+    return 'I found manuscript support, but not a clean direct answer. Ask “show me the passage” for the excerpt.';
   }
   return 'I could not find that information in the current Five Oaks canon.';
 }
@@ -294,17 +206,14 @@ function App() {
 
   const loadedBooks = bookIndex.filter((book) => (book.sections || []).length > 0);
   const loadedKnowledge = knowledgeIndex.filter((source) => (source.sections || []).length > 0);
-  const knowledgeMatches = useMemo(
-    () => searchKnowledge(question, loadedKnowledge),
-    [question, loadedKnowledge],
-  );
   const answer = useMemo(
     () => buildAnswer(question, loadedBooks, loadedKnowledge),
     [question, loadedBooks, loadedKnowledge],
   );
+  const exact = useMemo(() => exactEntityMatch(question, loadedKnowledge), [question, loadedKnowledge]);
   const matches = useMemo(
-    () => wantsPassage(question) && !knowledgeMatches.length ? searchBooks(question, loadedBooks) : [],
-    [question, loadedBooks, knowledgeMatches],
+    () => wantsPassage(question) && !exact ? searchBooks(question, loadedBooks) : [],
+    [question, loadedBooks, exact],
   );
   const diamondVoice = useMemo(() => pickFemaleVoice(voices), [voices]);
 
@@ -358,7 +267,7 @@ function App() {
       {activeTab === 'Ask Diamond' && (
         <section className="panel askPanel">
           <h2>Ask Diamond</h2>
-          <p>{loadedBooks.length ? `Books 1-12 and ${loadedKnowledge.length} canon databases are indexed. Diamond searches the databases before the manuscripts.` : 'Diamond has not indexed the book library yet.'}</p>
+          <p>{loadedBooks.length ? `Books 1-12 and ${loadedKnowledge.length} canon databases are indexed. Exact canon records are used before manuscripts.` : 'Diamond has not indexed the book library yet.'}</p>
           <textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask Diamond..." aria-label="Ask Diamond a Five Oaks question" />
           <div className="answerBox"><span>Diamond says</span><p style={{ whiteSpace: 'pre-wrap' }}>{answer}</p></div>
           {matches.length > 1 && <div className="gridPanel" style={{ marginTop: '18px' }}>{matches.slice(1, 4).map((match) => <article className="card" key={match.id}><h3>{match.bookTitle}</h3><p>{match.text}</p></article>)}</div>}
