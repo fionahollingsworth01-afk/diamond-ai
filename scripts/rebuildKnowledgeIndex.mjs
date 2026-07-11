@@ -18,7 +18,7 @@ const skip = new Set([
 
 const field = /^[A-Za-z][A-Za-z ’'/-]*:/;
 const dossierLeadField = /^(Given Name|Age|Born|Role):/i;
-const compactRelationWords = /\b(lives?|mother|father|sister|brother|wife|husband|uncle|aunt|daughter|son|children|child|friend|owner|worker|employer|appears?|married|raised|guardian|niece|nephew|grandmother|grandfather)\b/i;
+const compactDescriptionStart = /^(?:Lives?|Is|Was|Appears?|Works?|Hired|Married|Raised|Mother|Father|Sister|Brother|Wife|Husband|Uncle|Aunt|Daughter|Son|Children|Child|Friend|Owner|Worker|Employer|Guardian|Niece|Nephew|Grandmother|Grandfather|Longtime|Another|One|Elderly|Younger|Older|Susanna['’]s|Emma['’]s|Olivia['’]s|Luke['’]s|Matt['’]s|Waya['’]s|Tsula['’]s)\b/i;
 
 function clean(value = '') {
   return String(value).replace(/\s+/g, ' ').trim();
@@ -47,19 +47,40 @@ function addAlias(records, alias, record, type) {
   records.push({ id: `${type}-alias-${key.replace(/\s+/g, '-')}`, name: clean(alias), text: record.text });
 }
 
+function compactRecordFromLine(rawLine) {
+  const raw = clean(rawLine);
+  if (!raw || raw.length > 180 || raw.includes(':')) return null;
+
+  // Split at a likely description starter instead of greedily swallowing it as part of the name.
+  const tokens = raw.split(/\s+/);
+  for (let split = 1; split < Math.min(tokens.length, 6); split += 1) {
+    const name = tokens.slice(0, split).join(' ');
+    const description = tokens.slice(split).join(' ');
+    if (!compactDescriptionStart.test(description)) continue;
+    if (!/^[A-ZÀ-ÖØ-Ý][A-Za-zÀ-ÖØ-öø-ÿ'’-]+(?:\s+[‘'"“][^’'"”]+[’'"”])?(?:\s+[A-ZÀ-ÖØ-Ý][A-Za-zÀ-ÖØ-öø-ÿ'’-]+){0,2}$/.test(name)) continue;
+    return { name: clean(name), description: clean(description) };
+  }
+
+  return null;
+}
+
 function parseNamedRecords(rawText, type, fileKey = '') {
   const lines = rawText.replace(/\r/g, '').split('\n');
   const starts = [];
 
   for (let i = 0; i < lines.length; i += 1) {
-    const text = clean(lines[i]);
+    const rawLine = lines[i];
+    const text = clean(rawLine);
     if (!heading(text)) continue;
 
     const previousBlank = i === 0 || !clean(lines[i - 1]);
     const nextMeaningful = lines.slice(i + 1).map(clean).find(Boolean) || '';
     const beginsDossier = dossierLeadField.test(nextMeaningful);
+    const visuallySeparatedName = /\s{2,}$/.test(rawLine);
 
-    if (previousBlank || beginsDossier) starts.push(i);
+    // Dossiers may begin after another dossier with no blank line. Outlaw names in the
+    // imported files are marked by trailing spaces before their description line.
+    if (previousBlank || beginsDossier || visuallySeparatedName) starts.push(i);
   }
 
   const prefix = `${type}-${normalize(fileKey || 'database').replace(/\s+/g, '-')}`;
@@ -69,31 +90,24 @@ function parseNamedRecords(rawText, type, fileKey = '') {
     text: lines.slice(start, starts[index + 1] ?? lines.length).join('\n').trim(),
   })).filter((record) => record.text && !skip.has(normalize(record.name)));
 
-  // Catch compact entries separated by two or more spaces.
+  // Catch compact entries separated by two or more spaces on the same line.
   for (let i = 0; i < lines.length; i += 1) {
-    const raw = lines[i].trim();
-    if (!raw || field.test(raw)) continue;
-    const match = raw.match(/^([A-ZÀ-ÖØ-Ý][A-Za-zÀ-ÖØ-öø-ÿ0-9 .,'“”‘’"()&/-]{1,70})\s{2,}(.{3,})$/);
+    const raw = lines[i];
+    if (!raw || field.test(raw.trim())) continue;
+    const match = raw.match(/^(.+?)\s{2,}(.{3,})$/);
     if (!match) continue;
     const name = clean(match[1]);
-    if (skip.has(normalize(name)) || records.some((r) => normalize(r.name) === normalize(name))) continue;
+    if (!heading(name) || skip.has(normalize(name)) || records.some((r) => normalize(r.name) === normalize(name))) continue;
     records.push({ id: `${prefix}-inline-${i}`, name, text: `${name}\n${clean(match[2])}` });
   }
 
-  // Catch compact entries written with ordinary single spaces, such as:
+  // Catch compact entries written with ordinary single spaces, such as
   // "Dallas ‘Dally’ Harlowe Lives with Eddie and Mary".
   for (let i = 0; i < lines.length; i += 1) {
-    const raw = clean(lines[i]);
-    if (!raw || raw.length > 150 || raw.includes(':')) continue;
-
-    const match = raw.match(/^([A-ZÀ-ÖØ-Ý][A-Za-zÀ-ÖØ-öø-ÿ'-]+(?:\s+[‘'"][^’'"]+[’'"])?(?:\s+[A-ZÀ-ÖØ-Ý][A-Za-zÀ-ÖØ-öø-ÿ'-]+){1,2})\s+(.+)$/);
-    if (!match || !compactRelationWords.test(match[2])) continue;
-
-    const name = clean(match[1]);
-    const description = clean(match[2]);
-    if (skip.has(normalize(name)) || records.some((record) => normalize(record.name) === normalize(name))) continue;
-
-    records.push({ id: `${prefix}-compact-${i}`, name, text: `${name}\n${description}` });
+    const compact = compactRecordFromLine(lines[i]);
+    if (!compact) continue;
+    if (skip.has(normalize(compact.name)) || records.some((record) => normalize(record.name) === normalize(compact.name))) continue;
+    records.push({ id: `${prefix}-compact-${i}`, name: compact.name, text: `${compact.name}\n${compact.description}` });
   }
 
   const byFirst = new Map();
