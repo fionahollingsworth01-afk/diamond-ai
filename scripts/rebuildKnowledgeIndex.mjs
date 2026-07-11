@@ -17,6 +17,7 @@ const skip = new Set([
 ]);
 
 const field = /^[A-Za-z][A-Za-z ’'/-]*:/;
+const dossierLeadField = /^(Given Name|Age|Born|Role):/i;
 
 function clean(value = '') {
   return String(value).replace(/\s+/g, ' ').trim();
@@ -51,8 +52,13 @@ function parseNamedRecords(rawText, type, fileKey = '') {
 
   for (let i = 0; i < lines.length; i += 1) {
     const text = clean(lines[i]);
+    if (!heading(text)) continue;
+
     const previousBlank = i === 0 || !clean(lines[i - 1]);
-    if (previousBlank && heading(text)) starts.push(i);
+    const nextMeaningful = lines.slice(i + 1).map(clean).find(Boolean) || '';
+    const beginsDossier = dossierLeadField.test(nextMeaningful);
+
+    if (previousBlank || beginsDossier) starts.push(i);
   }
 
   const prefix = `${type}-${normalize(fileKey || 'database').replace(/\s+/g, '-')}`;
