@@ -1,3 +1,5 @@
+import { knowledgeIndex } from './knowledgeIndex.js';
+
 export const characterKnowledge = [
   {
     keys: ['conrad'],
@@ -85,7 +87,73 @@ export const characterKnowledge = [
   }
 ];
 
+function normalize(value = '') {
+  return String(value)
+    .toLowerCase()
+    .replace(/[’']/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function requestedSubject(question = '') {
+  return normalize(
+    String(question)
+      .replace(/^(who|what)\s+(is|was|are|were)\s+/i, '')
+      .replace(/^tell me (everything )?about\s+/i, '')
+      .replace(/^show me\s+/i, '')
+      .replace(/[?!.]+$/g, '')
+  );
+}
+
+function nameAliases(name = '') {
+  const aliases = new Set();
+  const normalizedName = normalize(name);
+  if (normalizedName) aliases.add(normalizedName);
+
+  const first = normalizedName.split(' ')[0];
+  if (first) aliases.add(first);
+
+  for (const match of String(name).matchAll(/[“‘"']([^”’"']+)[”’"']/g)) {
+    const nickname = normalize(match[1]);
+    if (nickname) aliases.add(nickname);
+  }
+
+  return aliases;
+}
+
+function findIndexedCharacter(subject) {
+  if (!subject) return null;
+  const matches = [];
+
+  for (const source of knowledgeIndex) {
+    if (source.type !== 'characters') continue;
+    for (const section of source.sections || []) {
+      if (nameAliases(section.name).has(subject)) matches.push(section);
+    }
+  }
+
+  if (!matches.length) return null;
+
+  const uniqueByText = [...new Map(matches.map((item) => [item.text, item])).values()];
+  if (uniqueByText.length !== 1) return null;
+
+  const match = uniqueByText[0];
+  return {
+    keys: [subject],
+    name: match.name,
+    short: match.text,
+    full: match.text,
+    facts: [],
+  };
+}
+
 export function findCharacterKnowledge(question) {
-  const text = question.toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9\s]/g, ' ');
-  return characterKnowledge.find((item) => item.keys.some((key) => text.includes(key)));
+  const subject = requestedSubject(question);
+  if (!subject) return null;
+
+  const indexed = findIndexedCharacter(subject);
+  if (indexed) return indexed;
+
+  return characterKnowledge.find((item) => item.keys.some((key) => normalize(key) === subject)) || null;
 }
