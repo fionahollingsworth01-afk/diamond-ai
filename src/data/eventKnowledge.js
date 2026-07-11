@@ -7,9 +7,9 @@ export const eventKnowledge = [
   },
   {
     keys: ['who married jennifer and waya', 'who performed jennifer and waya wedding', 'who officiated jennifer and waya wedding', 'who married them'],
-    title: 'Jennifer and Waya wedding officiant',
-    short: 'Elder Kai married Jennifer and Waya at the Cherokee settlement.',
-    full: 'Elder Kai performed Jennifer and Waya’s wedding at the Cherokee settlement.'
+    title: 'Jennifer and Waya wedding officiants',
+    short: 'A Cherokee shaman and a pastor married Jennifer and Waya at the settlement.',
+    full: 'Jennifer and Waya were married at the Cherokee settlement by a Cherokee shaman and a pastor. Elder Kai did not marry them; he was Kai’s grandfather and was already deceased.'
   },
   {
     keys: ['conrad arc', 'conrad temptation', 'temptation arc', 'almost kiss', 'krys and conrad'],
