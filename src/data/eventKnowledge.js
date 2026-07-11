@@ -1,5 +1,17 @@
 export const eventKnowledge = [
   {
+    keys: ['where did jennifer and waya marry', 'where were jennifer and waya married', 'jennifer and waya wedding location', 'waya and jennifer wedding location', 'where did they marry'],
+    title: 'Jennifer and Waya wedding location',
+    short: 'Jennifer and Waya were married at the Cherokee settlement.',
+    full: 'Jennifer Callahan and Waya Red Hawk were married at the Cherokee settlement, surrounded by Waya’s family and community.'
+  },
+  {
+    keys: ['who married jennifer and waya', 'who performed jennifer and waya wedding', 'who officiated jennifer and waya wedding', 'who married them'],
+    title: 'Jennifer and Waya wedding officiant',
+    short: 'Elder Kai married Jennifer and Waya at the Cherokee settlement.',
+    full: 'Elder Kai performed Jennifer and Waya’s wedding at the Cherokee settlement.'
+  },
+  {
     keys: ['conrad arc', 'conrad temptation', 'temptation arc', 'almost kiss', 'krys and conrad'],
     title: 'Conrad temptation arc',
     short: 'The Conrad arc tests Krys, Jake, and Matt emotionally. Conrad tempts Krys with attention and an easier polished life, but the real point of the arc is what that pressure reveals about Krys’ marriage, Jake’s pain, and Matt’s dependence on both of them staying whole.',
