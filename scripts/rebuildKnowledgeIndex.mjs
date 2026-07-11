@@ -36,32 +36,29 @@ function heading(line) {
 function addAlias(records, alias, record, type) {
   const key = normalize(alias);
   if (!key || records.some((item) => normalize(item.name) === key)) return;
-  records.push({ id: `${type}-alias-${key.replace(/\s+/g, '-')}`, name: alias, text: record.text });
+  records.push({ id: `${type}-alias-${key.replace(/\s+/g, '-')}`, name: clean(alias), text: record.text });
 }
 
 function parseNamedRecords(rawText, type) {
   const lines = rawText.replace(/\r/g, '').split('\n');
   const starts = [];
 
+  // The master file mixes long dossiers with short prose entries. Every blank-separated
+  // heading is therefore a record start; requiring a specific next field silently lost
+  // outlaws, relatives, ranch hands, and other short entries.
   for (let i = 0; i < lines.length; i += 1) {
     const text = clean(lines[i]);
     const previousBlank = i === 0 || !clean(lines[i - 1]);
-    if (!previousBlank || !heading(text)) continue;
-
-    let next = i + 1;
-    while (next < lines.length && !clean(lines[next])) next += 1;
-    const nextLine = clean(lines[next]);
-
-    const strongRecord = field.test(nextLine) || /^(role|given name|age|born|owner|breed|type|family|core spine|background|history|appears):/i.test(nextLine);
-    if (strongRecord) starts.push(i);
+    if (previousBlank && heading(text)) starts.push(i);
   }
 
   const records = starts.map((start, index) => ({
     id: `${type}-${index}`,
     name: clean(lines[start]),
     text: lines.slice(start, starts[index + 1] ?? lines.length).join('\n').trim(),
-  }));
+  })).filter((record) => record.text && !skip.has(normalize(record.name)));
 
+  // Catch compact entries written as "Name  description" on one line.
   for (let i = 0; i < lines.length; i += 1) {
     const raw = lines[i].trim();
     if (!raw || field.test(raw)) continue;
@@ -72,6 +69,7 @@ function parseNamedRecords(rawText, type) {
     records.push({ id: `${type}-inline-${i}`, name, text: `${name}\n${clean(match[2])}` });
   }
 
+  // Create aliases from first names, quoted nicknames, and parenthetical aliases.
   const byFirst = new Map();
   for (const record of records) {
     const first = normalize(record.name).split(' ')[0];
@@ -80,44 +78,26 @@ function parseNamedRecords(rawText, type) {
     const current = byFirst.get(first);
     if (!current || score > current.score) byFirst.set(first, { record, score });
   }
-
   for (const [first, { record }] of byFirst) addAlias(records, record.name.split(/\s+/)[0], record, type);
 
   for (const record of [...records]) {
-    for (const match of record.name.matchAll(/[“"]([^”"]+)[”"]/g)) addAlias(records, clean(match[1]), record, type);
-    for (const match of record.name.matchAll(/[‘']([^’']+)[’']/g)) addAlias(records, clean(match[1]), record, type);
-  }
-
-  // Guaranteed outlaw nickname aliases, pulled directly from the full master text.
-  for (const alias of ['Whisper', 'Ironjaw']) {
-    const aliasKey = normalize(alias);
-    const lineIndex = lines.findIndex((line) => normalize(line).split(' ').includes(aliasKey));
-    if (lineIndex < 0) continue;
-
-    let start = lineIndex;
-    while (start > 0 && clean(lines[start - 1])) start -= 1;
-
-    let end = lineIndex + 1;
-    while (end < lines.length) {
-      const current = clean(lines[end]);
-      const previousBlank = end === 0 || !clean(lines[end - 1]);
-      if (previousBlank && heading(current) && end > lineIndex + 1) break;
-      end += 1;
+    for (const match of record.name.matchAll(/[“"]([^”"]+)[”"]/g)) addAlias(records, match[1], record, type);
+    for (const match of record.name.matchAll(/[‘']([^’']+)[’']/g)) addAlias(records, match[1], record, type);
+    for (const match of record.name.matchAll(/\(([^)]+)\)/g)) {
+      const alias = clean(match[1]);
+      if (alias.split(/\s+/).length <= 3) addAlias(records, alias, record, type);
     }
-
-    const record = {
-      id: `${type}-direct-${aliasKey}`,
-      name: clean(lines[lineIndex]),
-      text: lines.slice(lineIndex, end).join('\n').trim(),
-    };
-    if (record.text) addAlias(records, alias, record, type);
   }
 
   return records;
 }
 
 function makeReferenceSections(rawText, file) {
-  return rawText.split(/\n{2,}/).map(clean).filter((block) => block.length >= 20).map((text, index) => ({ id: `reference-${file}-${index}`, name: clean(text.split('\n')[0]), text }));
+  return rawText.split(/\n{2,}/).map(clean).filter((block) => block.length >= 20).map((text, index) => ({
+    id: `reference-${file}-${index}`,
+    name: clean(text.split('\n')[0]),
+    text,
+  }));
 }
 
 async function main() {
