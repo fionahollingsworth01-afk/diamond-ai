@@ -52,6 +52,7 @@ function makeSections(text, minimumLength = 45) {
   const sections = [];
   let chunk = [];
   let length = 0;
+
   for (const paragraph of paragraphs) {
     chunk.push(paragraph);
     length += paragraph.length;
@@ -61,6 +62,7 @@ function makeSections(text, minimumLength = 45) {
       length = 0;
     }
   }
+
   if (chunk.length) sections.push(chunk.join(' '));
   return sections.slice(0, 2200);
 }
@@ -81,7 +83,7 @@ function looksLikePersonHeading(candidate, nextLine, previousBlank) {
   if (/^(character-database\.md|character base)$/i.test(candidate)) return false;
   if (!previousBlank) return false;
   if (/^(given name|age|born|role):/i.test(nextLine)) return true;
-  if (!nextLine || nextLine.includes(':') && !/^[A-Z][A-Za-z .,'“”‘’"-]+$/.test(candidate)) return false;
+  if (!nextLine || (nextLine.includes(':') && !/^[A-Z][A-Za-z .,'“”‘’"-]+$/.test(candidate))) return false;
   return /^[A-Z][A-Za-z0-9 .,'“”‘’"-]+$/.test(candidate);
 }
 
@@ -107,7 +109,6 @@ function makeCharacterSections(text) {
     };
   });
 
-  // Some minor characters are stored on one line as "Name  description".
   for (let index = 0; index < lines.length; index += 1) {
     const raw = lines[index].trim();
     const match = raw.match(/^([A-Z][A-Za-z0-9 .,'“”‘’"-]{1,45})\s{2,}(.{15,})$/);
@@ -115,17 +116,12 @@ function makeCharacterSections(text) {
     const name = match[1].trim();
     if (groupHeadings.has(name.toLowerCase())) continue;
     if (records.some((record) => record.name.toLowerCase() === name.toLowerCase())) continue;
-    records.push({
-      id: `character-inline-${index}`,
-      name,
-      text: `${name}\n${match[2].trim()}`,
-    });
+    records.push({ id: `character-inline-${index}`, name, text: `${name}\n${match[2].trim()}` });
   }
 
   const existing = new Set(records.map((record) => record.name.toLowerCase()));
   for (const item of supplementalCharacters) {
-    const names = [item.name, ...(item.aliases || [])];
-    for (const alias of names) {
+    for (const alias of [item.name, ...(item.aliases || [])]) {
       if (existing.has(alias.toLowerCase())) continue;
       records.push({
         id: `character-supplemental-${alias.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
@@ -148,13 +144,23 @@ function makeNamedDatabaseSections(text, type) {
   for (let index = 0; index < lines.length; index += 1) {
     const candidate = lines[index].trim();
     if (!candidate || databaseHeader.test(candidate) || fieldLine.test(candidate)) continue;
+    if (groupHeadings.has(candidate.toLowerCase())) continue;
+
     const previousBlank = index === 0 || !lines[index - 1].trim();
+    if (!previousBlank) continue;
+
     let next = index + 1;
     while (next < lines.length && !lines[next].trim()) next += 1;
     const nextLine = (lines[next] || '').trim();
-    const horseHeading = type === 'horses' && /^[A-Z][A-Z0-9 ’'-]+$/.test(candidate) && /^(Owner|Breed|Color|Gender|Temperament):/i.test(nextLine);
-    const livestockHeading = type === 'livestock' && previousBlank && candidate.length < 60 && !/^["“]/.test(candidate);
-    if (horseHeading || livestockHeading) starts.push(index);
+    if (!nextLine) continue;
+
+    const validName = /^[A-Za-z0-9][A-Za-z0-9 .,'“”‘’"-]{0,58}$/.test(candidate);
+    const looksLikeRecord = validName && (
+      fieldLine.test(nextLine) ||
+      (type === 'livestock' && !databaseHeader.test(nextLine))
+    );
+
+    if (looksLikeRecord) starts.push(index);
   }
 
   return starts.map((start, recordIndex) => {
@@ -170,11 +176,15 @@ function makeNamedDatabaseSections(text, type) {
 async function buildBooks() {
   const outputBooks = [];
   const errors = [];
+
   for (const book of books) {
     const fullPath = path.join(process.cwd(), 'public', 'books', book.file);
     try {
       const result = await mammoth.extractRawText({ path: fullPath });
-      const sections = makeSections(result.value, 80).map((sectionText, index) => ({ id: `${book.number}-${index}`, text: sectionText }));
+      const sections = makeSections(result.value, 80).map((sectionText, index) => ({
+        id: `${book.number}-${index}`,
+        text: sectionText,
+      }));
       outputBooks.push({ ...book, sections });
       console.log(`Indexed Book ${book.number}: ${book.title} (${sections.length} sections)`);
     } catch (error) {
@@ -182,20 +192,27 @@ async function buildBooks() {
       outputBooks.push({ ...book, sections: [] });
     }
   }
+
   return { outputBooks, errors };
 }
 
 async function buildKnowledge() {
   const outputKnowledge = [];
   const errors = [];
+
   for (const source of knowledgeFiles) {
     const fullPath = path.join(process.cwd(), source.file);
     try {
       const rawText = await fs.readFile(fullPath, 'utf8');
       let sections;
+
       if (source.type === 'characters') sections = makeCharacterSections(rawText);
       else if (source.type === 'horses' || source.type === 'livestock') sections = makeNamedDatabaseSections(rawText, source.type);
-      else sections = makeSections(rawText).map((sectionText, index) => ({ id: `knowledge-${source.file}-${index}`, text: sectionText }));
+      else sections = makeSections(rawText).map((sectionText, index) => ({
+        id: `knowledge-${source.file}-${index}`,
+        text: sectionText,
+      }));
+
       outputKnowledge.push({ ...source, rawText, sections });
       console.log(`Indexed knowledge: ${source.title} (${sections.length} sections)`);
     } catch (error) {
@@ -203,6 +220,7 @@ async function buildKnowledge() {
       outputKnowledge.push({ ...source, rawText: '', sections: [] });
     }
   }
+
   return { outputKnowledge, errors };
 }
 
@@ -211,6 +229,7 @@ async function main() {
   const { outputKnowledge, errors: knowledgeErrors } = await buildKnowledge();
   const bookOutput = `export const bookIndex = ${JSON.stringify(outputBooks, null, 2)};\n\nexport const bookIndexErrors = ${JSON.stringify(bookErrors, null, 2)};\n`;
   const knowledgeOutput = `export const knowledgeIndex = ${JSON.stringify(outputKnowledge, null, 2)};\n\nexport const knowledgeIndexErrors = ${JSON.stringify(knowledgeErrors, null, 2)};\n`;
+
   await fs.mkdir(path.join(process.cwd(), 'src', 'data'), { recursive: true });
   await fs.writeFile(path.join(process.cwd(), 'src', 'data', 'bookIndex.js'), bookOutput, 'utf8');
   await fs.writeFile(path.join(process.cwd(), 'src', 'data', 'knowledgeIndex.js'), knowledgeOutput, 'utf8');
