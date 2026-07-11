@@ -25,9 +25,17 @@ const stopWords = new Set(['what', 'was', 'were', 'the', 'did', 'does', 'who', '
 function cleanText(text) { return text.replace(/\s+/g, ' ').trim(); }
 function normalizedText(question) { return question.toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9\s]/g, ' '); }
 function questionTerms(question) { return normalizedText(question).split(/\s+/).filter((word) => word.length > 2 && !stopWords.has(word)); }
+function wantsFullRecord(question) {
+  const text = normalizedText(question);
+  return text.includes('dossier') || text.includes('full profile') || text.includes('full entry') || text.includes('complete entry') || text.includes('everything about') || text.includes('entire entry');
+}
+function wantsPassage(question) {
+  const text = normalizedText(question);
+  return text.includes('show me the passage') || text.includes('show the passage') || text.includes('scene') || text.includes('quote') || text.includes('excerpt');
+}
 function wantsExpandedAnswer(question) {
   const text = normalizedText(question).trim();
-  return text.startsWith('tell me about') || text.startsWith('tell me everything') || text.startsWith('who is') || text.startsWith('who was') || text.includes('show me') || text.includes('passage') || text.includes('scene') || text.includes('quote') || text.includes('special') || text.includes('deep') || text.includes('bond') || text.includes('relationship') || text.startsWith('why') || text.startsWith('how');
+  return text.startsWith('tell me about') || text.includes('special') || text.includes('deep') || text.includes('bond') || text.includes('relationship') || text.startsWith('why') || text.startsWith('how');
 }
 function isDirectQuestion(question) { return /^(who|what|when|where|why|how|did|does|do|is|are|was|were)\b/.test(normalizedText(question).trim()); }
 
@@ -74,20 +82,65 @@ function searchKnowledge(question, knowledge) {
   return searchCollection(question, knowledge, 'title');
 }
 
+function extractField(text, label, followingLabels) {
+  const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedFollowing = followingLabels.map((item) => item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const pattern = new RegExp(`${escapedLabel}:\\s*(.*?)(?=\\s+(?:${escapedFollowing}):|$)`, 'i');
+  return cleanText(text.match(pattern)?.[1] || '');
+}
+
+function firstSentences(text, count = 2) {
+  if (!text) return '';
+  const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [];
+  return cleanText(sentences.slice(0, count).join(' '));
+}
+
+function requestedSubject(question) {
+  return cleanText(question)
+    .replace(/^(who|what)\s+(is|was|are|were)\s+/i, '')
+    .replace(/^tell me about\s+/i, '')
+    .replace(/[?!.]+$/g, '');
+}
+
+function conversationalKnowledgeAnswer(match, question) {
+  if (!match?.text) return '';
+  if (wantsFullRecord(question)) return match.text;
+
+  const text = cleanText(match.text);
+  const subject = requestedSubject(question) || 'This entry';
+  const age = extractField(text, 'Age', ['Born', 'Role', 'Family', 'Core Spine', 'Background Foundation', 'Background', 'Type', 'Breed', 'Color', 'Temperament', 'History']);
+  const role = extractField(text, 'Role', ['Family', 'Core Spine', 'Background Foundation', 'Background', 'Core Formation', 'Type', 'Breed', 'Color', 'Temperament', 'History']);
+  const core = extractField(text, 'Core Spine', ['Background Foundation', 'Background', 'Core Formation', 'Core Beliefs', 'Greatest Fear', 'Greatest Strength', 'Fatal Flaw', 'Psychological Markers', 'History']);
+  const background = extractField(text, 'Background Foundation', ['Core Formation', 'Core Beliefs', 'Greatest Fear', 'Greatest Strength', 'Fatal Flaw', 'Psychological Markers', 'Relationship With', 'Locked Thematic Core']);
+    || extractField(text, 'Background', ['Core Formation', 'Core Beliefs', 'Greatest Fear', 'Greatest Strength', 'Fatal Flaw', 'Psychological Markers', 'Relationship With', 'Locked Thematic Core']);
+  const history = extractField(text, 'History', ['Core Formation', 'Core Beliefs', 'Greatest Fear', 'Greatest Strength', 'Fatal Flaw', 'Psychological Markers', 'Relationship With', 'Locked Thematic Core']);
+
+  const openingParts = [];
+  if (age) openingParts.push(`${subject} is ${age} years old`);
+  else openingParts.push(`${subject} is part of the Five Oaks canon`);
+  if (role) openingParts.push(`and is ${role.replace(/\s*•\s*/g, ', ')}`);
+
+  const details = [firstSentences(core, 2), firstSentences(background || history, wantsExpandedAnswer(question) ? 3 : 2)].filter(Boolean);
+  if (!details.length) details.push(firstSentences(text, wantsExpandedAnswer(question) ? 4 : 2));
+
+  return `${openingParts.join(' ')}. ${details.join(' ')}`.replace(/\s+/g, ' ').trim();
+}
+
 function buildBookAnswer(question, books, knowledge) {
   if (!question.trim()) return '';
+  const knowledgeMatches = searchKnowledge(question, knowledge);
   const resolved = resolveSubject(question);
   const legacyKnowledge = legacyKnowledgeAnswer(question);
   const expanded = wantsExpandedAnswer(question);
   const directQuestion = isDirectQuestion(question);
-  const knowledgeMatches = searchKnowledge(question, knowledge);
   const bookMatches = searchBooks(question, books);
 
+  if (knowledgeMatches.length) return conversationalKnowledgeAnswer(knowledgeMatches[0], question);
   if (resolved?.answer) return resolved.answer;
-  if (knowledgeMatches.length) return knowledgeMatches[0].text;
   if (legacyKnowledge) return legacyKnowledge;
-  if (directQuestion && !expanded) return 'I could not find a direct answer for that in the current Five Oaks canon yet.';
-  if (bookMatches.length && expanded) return `I found this in ${bookMatches[0].bookTitle}:\n\n${bookMatches[0].text}`;
+  if (bookMatches.length && wantsPassage(question)) return `I found this in ${bookMatches[0].bookTitle}:\n\n${bookMatches[0].text}`;
+  if (bookMatches.length && expanded) return `According to ${bookMatches[0].bookTitle}, ${firstSentences(bookMatches[0].text, 4)}`;
+  if (directQuestion) return 'I could not find a direct answer for that in the current Five Oaks canon yet.';
   if (bookMatches.length) return 'I found book support, but not a clean direct answer yet. Ask “show me the passage” if you want the excerpt.';
   return 'I could not find that information in the current Five Oaks canon.';
 }
@@ -111,8 +164,9 @@ function App() {
   const [speaking, setSpeaking] = useState(false);
   const loadedBooks = bookIndex.filter((book) => (book.sections || []).length > 0);
   const loadedKnowledge = knowledgeIndex.filter((source) => (source.sections || []).length > 0);
+  const knowledgeMatches = useMemo(() => searchKnowledge(question, loadedKnowledge), [question, loadedKnowledge]);
   const answer = useMemo(() => buildBookAnswer(question, loadedBooks, loadedKnowledge), [question, loadedBooks, loadedKnowledge]);
-  const matches = useMemo(() => wantsExpandedAnswer(question) ? searchBooks(question, loadedBooks) : [], [question, loadedBooks]);
+  const matches = useMemo(() => wantsPassage(question) && !knowledgeMatches.length ? searchBooks(question, loadedBooks) : [], [question, loadedBooks, knowledgeMatches]);
   const diamondVoice = useMemo(() => pickFemaleVoice(voices), [voices]);
 
   useEffect(() => {
