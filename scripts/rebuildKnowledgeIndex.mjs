@@ -18,6 +18,7 @@ const skip = new Set([
 
 const field = /^[A-Za-z][A-Za-z ’'/-]*:/;
 const dossierLeadField = /^(Given Name|Age|Born|Role):/i;
+const compactRelationWords = /\b(lives?|mother|father|sister|brother|wife|husband|uncle|aunt|daughter|son|children|child|friend|owner|worker|employer|appears?|married|raised|guardian|niece|nephew|grandmother|grandfather)\b/i;
 
 function clean(value = '') {
   return String(value).replace(/\s+/g, ' ').trim();
@@ -68,6 +69,7 @@ function parseNamedRecords(rawText, type, fileKey = '') {
     text: lines.slice(start, starts[index + 1] ?? lines.length).join('\n').trim(),
   })).filter((record) => record.text && !skip.has(normalize(record.name)));
 
+  // Catch compact entries separated by two or more spaces.
   for (let i = 0; i < lines.length; i += 1) {
     const raw = lines[i].trim();
     if (!raw || field.test(raw)) continue;
@@ -76,6 +78,22 @@ function parseNamedRecords(rawText, type, fileKey = '') {
     const name = clean(match[1]);
     if (skip.has(normalize(name)) || records.some((r) => normalize(r.name) === normalize(name))) continue;
     records.push({ id: `${prefix}-inline-${i}`, name, text: `${name}\n${clean(match[2])}` });
+  }
+
+  // Catch compact entries written with ordinary single spaces, such as:
+  // "Dallas ‘Dally’ Harlowe Lives with Eddie and Mary".
+  for (let i = 0; i < lines.length; i += 1) {
+    const raw = clean(lines[i]);
+    if (!raw || raw.length > 150 || raw.includes(':')) continue;
+
+    const match = raw.match(/^([A-ZÀ-ÖØ-Ý][A-Za-zÀ-ÖØ-öø-ÿ'-]+(?:\s+[‘'"][^’'"]+[’'"])?(?:\s+[A-ZÀ-ÖØ-Ý][A-Za-zÀ-ÖØ-öø-ÿ'-]+){1,2})\s+(.+)$/);
+    if (!match || !compactRelationWords.test(match[2])) continue;
+
+    const name = clean(match[1]);
+    const description = clean(match[2]);
+    if (skip.has(normalize(name)) || records.some((record) => normalize(record.name) === normalize(name))) continue;
+
+    records.push({ id: `${prefix}-compact-${i}`, name, text: `${name}\n${description}` });
   }
 
   const byFirst = new Map();
