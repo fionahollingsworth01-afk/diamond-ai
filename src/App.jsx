@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { canonRules, characters, families } from './data/diamondData.js';
 import { bookIndex, bookIndexErrors } from './data/bookIndex.js';
 import { knowledgeIndex, knowledgeIndexErrors } from './data/knowledgeIndex.js';
-import { relationships } from './data/relationshipData.js';
 import { relationshipGraph } from './data/relationshipGraph.js';
 import { findCharacterKnowledge } from './data/characterKnowledge.js';
 import { findEventKnowledge } from './data/eventKnowledge.js';
@@ -20,24 +19,52 @@ const tabs = [
   { label: 'Canon Rules', icon: '⚖️' },
 ];
 
-const stopWords = new Set(['what', 'was', 'were', 'the', 'did', 'does', 'who', 'where', 'when', 'how', 'and', 'for', 'with', 'from', 'that', 'this', 'have', 'has', 'his', 'her', 'they', 'them', 'their', 'horse', 'ride', 'rode', 'named', 'name', 'tell', 'show', 'find', 'about']);
+const stopWords = new Set([
+  'what', 'was', 'were', 'the', 'did', 'does', 'who', 'where', 'when', 'how',
+  'and', 'for', 'with', 'from', 'that', 'this', 'have', 'has', 'his', 'her',
+  'they', 'them', 'their', 'horse', 'ride', 'rode', 'named', 'name', 'tell',
+  'show', 'find', 'about',
+]);
 
-function cleanText(text) { return text.replace(/\s+/g, ' ').trim(); }
-function normalizedText(question) { return question.toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9\s]/g, ' '); }
-function questionTerms(question) { return normalizedText(question).split(/\s+/).filter((word) => word.length > 2 && !stopWords.has(word)); }
+function cleanText(text = '') {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+function normalizedText(text = '') {
+  return text.toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9\s]/g, ' ');
+}
+
+function questionTerms(question) {
+  return normalizedText(question)
+    .split(/\s+/)
+    .filter((word) => word.length > 2 && !stopWords.has(word));
+}
+
 function wantsFullRecord(question) {
   const text = normalizedText(question);
-  return text.includes('dossier') || text.includes('full profile') || text.includes('full entry') || text.includes('complete entry') || text.includes('everything about') || text.includes('entire entry');
+  return text.includes('dossier') || text.includes('full profile') ||
+    text.includes('full entry') || text.includes('complete entry') ||
+    text.includes('everything about') || text.includes('entire entry');
 }
+
 function wantsPassage(question) {
   const text = normalizedText(question);
-  return text.includes('show me the passage') || text.includes('show the passage') || text.includes('scene') || text.includes('quote') || text.includes('excerpt');
+  return text.includes('show me the passage') || text.includes('show the passage') ||
+    text.includes('scene') || text.includes('quote') || text.includes('excerpt');
 }
+
 function wantsExpandedAnswer(question) {
   const text = normalizedText(question).trim();
-  return text.startsWith('tell me about') || text.includes('special') || text.includes('deep') || text.includes('bond') || text.includes('relationship') || text.startsWith('why') || text.startsWith('how');
+  return text.startsWith('tell me about') || text.startsWith('why') ||
+    text.startsWith('how') || text.includes('relationship') ||
+    text.includes('bond') || text.includes('deep');
 }
-function isDirectQuestion(question) { return /^(who|what|when|where|why|how|did|does|do|is|are|was|were)\b/.test(normalizedText(question).trim()); }
+
+function isDirectQuestion(question) {
+  return /^(who|what|when|where|why|how|did|does|do|is|are|was|were)\b/.test(
+    normalizedText(question).trim(),
+  );
+}
 
 function knowledgeEntryAnswer(entry, question) {
   if (!entry) return '';
@@ -45,17 +72,20 @@ function knowledgeEntryAnswer(entry, question) {
 }
 
 function legacyKnowledgeAnswer(question) {
-  return knowledgeEntryAnswer(findPlaceKnowledge(question), question) || knowledgeEntryAnswer(findEventKnowledge(question), question) || knowledgeEntryAnswer(findTimelineKnowledge(question), question) || knowledgeEntryAnswer(findCharacterKnowledge(question), question);
+  return knowledgeEntryAnswer(findPlaceKnowledge(question), question) ||
+    knowledgeEntryAnswer(findEventKnowledge(question), question) ||
+    knowledgeEntryAnswer(findTimelineKnowledge(question), question) ||
+    knowledgeEntryAnswer(findCharacterKnowledge(question), question);
 }
 
-function searchCollection(question, collection, sourceLabelKey) {
+function searchCollection(question, collection, labelKey) {
   const terms = questionTerms(question);
   if (!terms.length || !collection.length) return [];
   const phrase = cleanText(normalizedText(question));
   const results = [];
 
   for (const source of collection) {
-    const sourceLabel = source[sourceLabelKey] || source.title || source.file;
+    const sourceLabel = source[labelKey] || source.title || source.file;
     const sourceName = normalizedText(sourceLabel || '');
     for (const part of source.sections || []) {
       const lower = normalizedText(part.text);
@@ -72,26 +102,27 @@ function searchCollection(question, collection, sourceLabelKey) {
 }
 
 function searchBooks(question, books) {
-  return searchCollection(question, books, 'title').map((match) => {
-    const book = books.find((item) => item.title === match.sourceLabel);
-    return { ...match, bookTitle: match.sourceLabel, bookNumber: book?.number };
-  });
+  return searchCollection(question, books, 'title').map((match) => ({
+    ...match,
+    bookTitle: match.sourceLabel,
+  }));
 }
 
 function searchKnowledge(question, knowledge) {
   return searchCollection(question, knowledge, 'title');
 }
 
-function extractField(text, label, followingLabels) {
-  const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const escapedFollowing = followingLabels.map((item) => item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-  const pattern = new RegExp(`${escapedLabel}:\\s*(.*?)(?=\\s+(?:${escapedFollowing}):|$)`, 'i');
-  return cleanText(text.match(pattern)?.[1] || '');
+function extractField(text, label, nextLabels) {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const next = nextLabels
+    .map((item) => item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('|');
+  const match = text.match(new RegExp(`${escaped}:\\s*(.*?)(?=\\s+(?:${next}):|$)`, 'i'));
+  return cleanText(match?.[1] || '');
 }
 
 function firstSentences(text, count = 2) {
-  if (!text) return '';
-  const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [];
+  const sentences = cleanText(text).match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [];
   return cleanText(sentences.slice(0, count).join(' '));
 }
 
@@ -108,53 +139,94 @@ function conversationalKnowledgeAnswer(match, question) {
 
   const text = cleanText(match.text);
   const subject = requestedSubject(question) || 'This entry';
-  const age = extractField(text, 'Age', ['Born', 'Role', 'Family', 'Core Spine', 'Background Foundation', 'Background', 'Type', 'Breed', 'Color', 'Temperament', 'History']);
-  const role = extractField(text, 'Role', ['Family', 'Core Spine', 'Background Foundation', 'Background', 'Core Formation', 'Type', 'Breed', 'Color', 'Temperament', 'History']);
-  const core = extractField(text, 'Core Spine', ['Background Foundation', 'Background', 'Core Formation', 'Core Beliefs', 'Greatest Fear', 'Greatest Strength', 'Fatal Flaw', 'Psychological Markers', 'History']);
-  const background = extractField(text, 'Background Foundation', ['Core Formation', 'Core Beliefs', 'Greatest Fear', 'Greatest Strength', 'Fatal Flaw', 'Psychological Markers', 'Relationship With', 'Locked Thematic Core']);
-    || extractField(text, 'Background', ['Core Formation', 'Core Beliefs', 'Greatest Fear', 'Greatest Strength', 'Fatal Flaw', 'Psychological Markers', 'Relationship With', 'Locked Thematic Core']);
-  const history = extractField(text, 'History', ['Core Formation', 'Core Beliefs', 'Greatest Fear', 'Greatest Strength', 'Fatal Flaw', 'Psychological Markers', 'Relationship With', 'Locked Thematic Core']);
+  const age = extractField(text, 'Age', [
+    'Born', 'Role', 'Family', 'Core Spine', 'Background Foundation', 'Background',
+    'Type', 'Breed', 'Color', 'Temperament', 'History',
+  ]);
+  const role = extractField(text, 'Role', [
+    'Family', 'Core Spine', 'Background Foundation', 'Background', 'Core Formation',
+    'Type', 'Breed', 'Color', 'Temperament', 'History',
+  ]);
+  const core = extractField(text, 'Core Spine', [
+    'Background Foundation', 'Background', 'Core Formation', 'Core Beliefs',
+    'Greatest Fear', 'Greatest Strength', 'Fatal Flaw', 'Psychological Markers', 'History',
+  ]);
+  const background = extractField(text, 'Background Foundation', [
+    'Core Formation', 'Core Beliefs', 'Greatest Fear', 'Greatest Strength',
+    'Fatal Flaw', 'Psychological Markers', 'Relationship With', 'Locked Thematic Core',
+  ]) || extractField(text, 'Background', [
+    'Core Formation', 'Core Beliefs', 'Greatest Fear', 'Greatest Strength',
+    'Fatal Flaw', 'Psychological Markers', 'Relationship With', 'Locked Thematic Core',
+  ]);
+  const history = extractField(text, 'History', [
+    'Core Formation', 'Core Beliefs', 'Greatest Fear', 'Greatest Strength',
+    'Fatal Flaw', 'Psychological Markers', 'Relationship With', 'Locked Thematic Core',
+  ]);
 
-  const openingParts = [];
-  if (age) openingParts.push(`${subject} is ${age} years old`);
-  else openingParts.push(`${subject} is part of the Five Oaks canon`);
-  if (role) openingParts.push(`and is ${role.replace(/\s*•\s*/g, ', ')}`);
+  let opening = age ? `${subject} is ${age} years old` : `${subject} is part of the Five Oaks canon`;
+  if (role) opening += ` and is ${role.replace(/\s*•\s*/g, ', ')}`;
 
-  const details = [firstSentences(core, 2), firstSentences(background || history, wantsExpandedAnswer(question) ? 3 : 2)].filter(Boolean);
+  const details = [
+    firstSentences(core, 2),
+    firstSentences(background || history, wantsExpandedAnswer(question) ? 3 : 2),
+  ].filter(Boolean);
+
   if (!details.length) details.push(firstSentences(text, wantsExpandedAnswer(question) ? 4 : 2));
-
-  return `${openingParts.join(' ')}. ${details.join(' ')}`.replace(/\s+/g, ' ').trim();
+  return `${opening}. ${details.join(' ')}`.replace(/\s+/g, ' ').trim();
 }
 
-function buildBookAnswer(question, books, knowledge) {
+function buildAnswer(question, books, knowledge) {
   if (!question.trim()) return '';
-  const knowledgeMatches = searchKnowledge(question, knowledge);
-  const resolved = resolveSubject(question);
-  const legacyKnowledge = legacyKnowledgeAnswer(question);
-  const expanded = wantsExpandedAnswer(question);
-  const directQuestion = isDirectQuestion(question);
-  const bookMatches = searchBooks(question, books);
 
+  const knowledgeMatches = searchKnowledge(question, knowledge);
   if (knowledgeMatches.length) return conversationalKnowledgeAnswer(knowledgeMatches[0], question);
+
+  const resolved = resolveSubject(question);
   if (resolved?.answer) return resolved.answer;
-  if (legacyKnowledge) return legacyKnowledge;
-  if (bookMatches.length && wantsPassage(question)) return `I found this in ${bookMatches[0].bookTitle}:\n\n${bookMatches[0].text}`;
-  if (bookMatches.length && expanded) return `According to ${bookMatches[0].bookTitle}, ${firstSentences(bookMatches[0].text, 4)}`;
-  if (directQuestion) return 'I could not find a direct answer for that in the current Five Oaks canon yet.';
-  if (bookMatches.length) return 'I found book support, but not a clean direct answer yet. Ask “show me the passage” if you want the excerpt.';
+
+  const legacy = legacyKnowledgeAnswer(question);
+  if (legacy) return legacy;
+
+  const bookMatches = searchBooks(question, books);
+  if (bookMatches.length && wantsPassage(question)) {
+    return `I found this in ${bookMatches[0].bookTitle}:\n\n${bookMatches[0].text}`;
+  }
+  if (bookMatches.length && wantsExpandedAnswer(question)) {
+    return `According to ${bookMatches[0].bookTitle}, ${firstSentences(bookMatches[0].text, 4)}`;
+  }
+  if (isDirectQuestion(question)) {
+    return 'I could not find a direct answer for that in the current Five Oaks canon yet.';
+  }
+  if (bookMatches.length) {
+    return 'I found book support, but not a clean direct answer yet. Ask “show me the passage” if you want the excerpt.';
+  }
   return 'I could not find that information in the current Five Oaks canon.';
 }
 
 function pickFemaleVoice(voices) {
-  const englishVoices = voices.filter((voice) => voice.lang?.toLowerCase().startsWith('en'));
-  const voicePool = englishVoices.length ? englishVoices : voices;
-  const femaleHints = ['female', 'woman', 'zira', 'susan', 'samantha', 'victoria', 'karen', 'moira', 'tessa', 'serena', 'ava', 'allison', 'salli', 'joanna', 'kendra', 'kimberly', 'aria', 'jenny', 'michelle'];
-  return voicePool.find((voice) => femaleHints.some((hint) => voice.name.toLowerCase().includes(hint))) || voicePool.find((voice) => voice.lang?.toLowerCase().startsWith('en-us')) || voicePool[0];
+  const english = voices.filter((voice) => voice.lang?.toLowerCase().startsWith('en'));
+  const pool = english.length ? english : voices;
+  const hints = ['female', 'woman', 'zira', 'susan', 'samantha', 'victoria', 'karen', 'moira', 'tessa', 'serena', 'ava', 'allison', 'salli', 'joanna', 'kendra', 'kimberly', 'aria', 'jenny', 'michelle'];
+  return pool.find((voice) => hints.some((hint) => voice.name.toLowerCase().includes(hint))) ||
+    pool.find((voice) => voice.lang?.toLowerCase().startsWith('en-us')) || pool[0];
 }
 
 function DiamondFace({ speaking }) {
-  const frameStyle = { position: 'relative', width: '535px', height: '565px', borderRadius: '30px', overflow: 'hidden', border: '2px solid rgba(255,255,255,.24)', boxShadow: speaking ? 'inset 0 0 35px rgba(255,255,255,.11), 0 0 48px rgba(233,182,214,.5)' : 'inset 0 0 35px rgba(255,255,255,.09), 0 0 38px rgba(233,182,214,.34)', background: '#140f12', filter: speaking ? 'brightness(1.06)' : 'none' };
-  return <section className="diamondPortraitShell" aria-label="Diamond assistant portrait"><div className="portraitGlow" /><div style={frameStyle}><img className="diamondPortrait" src={diamondPortrait} alt="Diamond" /></div><p className="faceCaption">{speaking ? 'Diamond is speaking' : 'Diamond is online'}</p></section>;
+  const frameStyle = {
+    position: 'relative', width: '535px', height: '565px', borderRadius: '30px',
+    overflow: 'hidden', border: '2px solid rgba(255,255,255,.24)',
+    boxShadow: speaking
+      ? 'inset 0 0 35px rgba(255,255,255,.11), 0 0 48px rgba(233,182,214,.5)'
+      : 'inset 0 0 35px rgba(255,255,255,.09), 0 0 38px rgba(233,182,214,.34)',
+    background: '#140f12', filter: speaking ? 'brightness(1.06)' : 'none',
+  };
+  return (
+    <section className="diamondPortraitShell" aria-label="Diamond assistant portrait">
+      <div className="portraitGlow" />
+      <div style={frameStyle}><img className="diamondPortrait" src={diamondPortrait} alt="Diamond" /></div>
+      <p className="faceCaption">{speaking ? 'Diamond is speaking' : 'Diamond is online'}</p>
+    </section>
+  );
 }
 
 function App() {
@@ -162,11 +234,21 @@ function App() {
   const [question, setQuestion] = useState('How are Jake, Krys, and Matt connected?');
   const [voices, setVoices] = useState([]);
   const [speaking, setSpeaking] = useState(false);
+
   const loadedBooks = bookIndex.filter((book) => (book.sections || []).length > 0);
   const loadedKnowledge = knowledgeIndex.filter((source) => (source.sections || []).length > 0);
-  const knowledgeMatches = useMemo(() => searchKnowledge(question, loadedKnowledge), [question, loadedKnowledge]);
-  const answer = useMemo(() => buildBookAnswer(question, loadedBooks, loadedKnowledge), [question, loadedBooks, loadedKnowledge]);
-  const matches = useMemo(() => wantsPassage(question) && !knowledgeMatches.length ? searchBooks(question, loadedBooks) : [], [question, loadedBooks, knowledgeMatches]);
+  const knowledgeMatches = useMemo(
+    () => searchKnowledge(question, loadedKnowledge),
+    [question, loadedKnowledge],
+  );
+  const answer = useMemo(
+    () => buildAnswer(question, loadedBooks, loadedKnowledge),
+    [question, loadedBooks, loadedKnowledge],
+  );
+  const matches = useMemo(
+    () => wantsPassage(question) && !knowledgeMatches.length ? searchBooks(question, loadedBooks) : [],
+    [question, loadedBooks, knowledgeMatches],
+  );
   const diamondVoice = useMemo(() => pickFemaleVoice(voices), [voices]);
 
   useEffect(() => {
@@ -206,13 +288,35 @@ function App() {
 
   return (
     <main className="appShell">
-      <section className="hero heroWithFace"><div><p className="eyebrow">The World of Five Oaks</p><h1>Diamond</h1><p className="tagline">Five Oaks canon assistant, character encyclopedia, and continuity guard.</p></div><DiamondFace speaking={speaking} /><div className="statusCard"><span>Library</span><strong>{loadedBooks.length} of {bookIndex.length} books indexed</strong><span>Canon databases</span><strong>{loadedKnowledge.length} of {knowledgeIndex.length} indexed</strong></div></section>
-      <nav className="tabs" aria-label="Diamond sections">{tabs.map((tab) => <button key={tab.label} className={activeTab === tab.label ? 'active' : ''} onClick={() => setActiveTab(tab.label)}><span aria-hidden="true">{tab.icon}</span> {tab.label}</button>)}</nav>
-      {activeTab === 'Ask Diamond' && <section className="panel askPanel"><h2>Ask Diamond</h2><p>{loadedBooks.length ? `Books 1-12 and ${loadedKnowledge.length} canon databases are indexed. Diamond searches the databases before the manuscripts.` : 'Diamond has not indexed the book library yet.'}</p><textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask Diamond..." aria-label="Ask Diamond a Five Oaks question" /><div className="answerBox"><span>Diamond says</span><p style={{ whiteSpace: 'pre-wrap' }}>{answer}</p></div>{matches.length > 1 && <div className="gridPanel" style={{ marginTop: '18px' }}>{matches.slice(1, 4).map((match) => <article className="card" key={match.id}><h3>{match.bookTitle}</h3><p>{match.text}</p></article>)}</div>}<div className="voiceControls"><button type="button" onClick={speakAnswer} disabled={!answer}>Hear Diamond</button><button type="button" onClick={stopSpeaking}>Stop</button><button type="button" onClick={clearAskDiamond}>Clear</button><p>{diamondVoice ? `Voice selected: ${diamondVoice.name}` : 'Female voice loading...'}</p></div></section>}
+      <section className="hero heroWithFace">
+        <div><p className="eyebrow">The World of Five Oaks</p><h1>Diamond</h1><p className="tagline">Five Oaks canon assistant, character encyclopedia, and continuity guard.</p></div>
+        <DiamondFace speaking={speaking} />
+        <div className="statusCard"><span>Library</span><strong>{loadedBooks.length} of {bookIndex.length} books indexed</strong><span>Canon databases</span><strong>{loadedKnowledge.length} of {knowledgeIndex.length} indexed</strong></div>
+      </section>
+
+      <nav className="tabs" aria-label="Diamond sections">
+        {tabs.map((tab) => <button key={tab.label} className={activeTab === tab.label ? 'active' : ''} onClick={() => setActiveTab(tab.label)}><span aria-hidden="true">{tab.icon}</span> {tab.label}</button>)}
+      </nav>
+
+      {activeTab === 'Ask Diamond' && (
+        <section className="panel askPanel">
+          <h2>Ask Diamond</h2>
+          <p>{loadedBooks.length ? `Books 1-12 and ${loadedKnowledge.length} canon databases are indexed. Diamond searches the databases before the manuscripts.` : 'Diamond has not indexed the book library yet.'}</p>
+          <textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask Diamond..." aria-label="Ask Diamond a Five Oaks question" />
+          <div className="answerBox"><span>Diamond says</span><p style={{ whiteSpace: 'pre-wrap' }}>{answer}</p></div>
+          {matches.length > 1 && <div className="gridPanel" style={{ marginTop: '18px' }}>{matches.slice(1, 4).map((match) => <article className="card" key={match.id}><h3>{match.bookTitle}</h3><p>{match.text}</p></article>)}</div>}
+          <div className="voiceControls"><button type="button" onClick={speakAnswer} disabled={!answer}>Hear Diamond</button><button type="button" onClick={stopSpeaking}>Stop</button><button type="button" onClick={clearAskDiamond}>Clear</button><p>{diamondVoice ? `Voice selected: ${diamondVoice.name}` : 'Female voice loading...'}</p></div>
+        </section>
+      )}
+
       {activeTab === 'Books' && <section className="gridPanel">{bookIndex.map((book) => <article className="card" key={book.file}><h2>Book {book.number}</h2><h3>{book.title}</h3><p>{(book.sections || []).length ? `${book.sections.length} searchable sections indexed.` : 'Not indexed yet.'}</p></article>)}{bookIndexErrors.map((error) => <article className="card" key={error.file}><h3>Index warning</h3><p>{error.book}: {error.error}</p></article>)}{knowledgeIndexErrors.map((error) => <article className="card" key={error.file}><h3>Knowledge warning</h3><p>{error.title}: {error.error}</p></article>)}</section>}
+
       {activeTab === 'Characters' && <section className="gridPanel">{characters.map((character) => <article className="card" key={character.name}><h2>{character.name}</h2><p className="muted">{character.givenName}</p><h3>{character.role}</h3><p>{character.core}</p><p><strong>Horse:</strong> {character.horse} — {character.horseEra}</p><p><strong>Weapons:</strong> {character.weapons.join(', ')}</p></article>)}</section>}
+
       {activeTab === 'Relationships' && <section className="gridPanel"><article className="card"><h2>Relationship Graph</h2><p>{relationshipGraph.nodes.length} subjects and {relationshipGraph.edges.length} direct canon links are available to Diamond’s resolver.</p></article>{relationshipGraph.edges.map((item) => <article className="card" key={`${item.source}-${item.target}`}><h2>{item.title}</h2><p>{item.summary}</p></article>)}</section>}
+
       {activeTab === 'Families' && <section className="gridPanel">{families.map((item) => <article className="card" key={item.family}><h2>{item.family}</h2><p>{item.notes}</p></article>)}</section>}
+
       {activeTab === 'Canon Rules' && <section className="panel"><h2>Diamond’s Canon Rules</h2><ul className="rulesList">{canonRules.map((rule) => <li key={rule}>{rule}</li>)}</ul></section>}
     </main>
   );
