@@ -8,13 +8,20 @@ import { inferCanonAnswer } from './inferenceEngine.js';
 import { findRelationshipEdge, findRelationshipGroup, findRelationshipPath, findSubjectConnections, relationshipGraph } from './relationshipGraph.js';
 import { relationships } from './relationshipData.js';
 
-export function normalizeQuestion(question) {
-  return question.toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9\s]/g, ' ');
+export function normalizeQuestion(question = '') {
+  return String(question).toLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 function wantsExpandedAnswer(question) {
-  const text = normalizeQuestion(question).trim();
+  const text = normalizeQuestion(question);
   return text.startsWith('tell me about') || text.startsWith('tell me everything') || text.startsWith('who is') || text.startsWith('who was') || text.includes('show me') || text.includes('passage') || text.includes('scene') || text.includes('quote') || text.includes('special') || text.includes('deep') || text.includes('bond') || text.includes('relationship') || text.startsWith('why') || text.startsWith('how');
+}
+
+function isIdentityQuestion(text) {
+  return /^(who|what)\s+(is|was|are|were)\b/.test(text) ||
+    text.startsWith('tell me about ') ||
+    text.startsWith('tell me everything about ') ||
+    text.startsWith('show me ');
 }
 
 function personIsMentioned(text, person) {
@@ -32,7 +39,7 @@ function uniqueItems(items) {
 
 function wordsForSubject(subject) {
   return uniqueItems([subject.key, subject.displayName.toLowerCase(), ...(subject.aliases || [])])
-    .map((item) => normalizeQuestion(item).trim())
+    .map((item) => normalizeQuestion(item))
     .filter(Boolean)
     .sort((a, b) => b.length - a.length);
 }
@@ -64,12 +71,10 @@ function subjectName(key) {
 function pathAnswer(path) {
   if (!path || path.length < 2) return '';
   const parts = [];
-
   for (let index = 0; index < path.length - 1; index += 1) {
     const edge = findRelationshipEdge(path[index], path[index + 1]);
     if (edge) parts.push(`${edge.title}: ${edge.direct}`);
   }
-
   return parts.length ? `Diamond does not have a direct link entered for those two yet, but the relationship graph connects them this way:\n\n${parts.join('\n\n')}` : '';
 }
 
@@ -79,7 +84,6 @@ function buildMultiSubjectAnswer(subjects, expanded) {
   if (group) return expanded ? group.expanded : group.direct;
 
   const pairAnswers = [];
-
   for (let first = 0; first < keys.length; first += 1) {
     for (let second = first + 1; second < keys.length; second += 1) {
       const edge = findRelationshipEdge(keys[first], keys[second]);
@@ -93,50 +97,20 @@ function buildMultiSubjectAnswer(subjects, expanded) {
   }
 
   const connections = findSubjectConnections(keys, true);
-  if (connections.length) {
-    return connections.map((edge) => `${edge.title}: ${edge.direct}`).join('\n\n');
-  }
-
+  if (connections.length) return connections.map((edge) => `${edge.title}: ${edge.direct}`).join('\n\n');
   return `Diamond knows ${keys.map(subjectName).join(', ')} as canon subjects, but no direct relationship link has been entered for that exact group yet.`;
 }
 
 function directCanonFact(text) {
-  const asksIdentity = text.includes('who is') || text.includes('who was') || text.includes('tell me about');
+  const asksIdentity = isIdentityQuestion(text);
 
-  if (asksIdentity && text.includes('whispers brother')) {
-    return {
-      type: 'fact',
-      answer: 'James “Ironjaw” Winston is Jesse “Whisper” Winston’s older brother. Ironjaw leads the larger outlaw outfit. He is dangerous and intimidating, but less impulsive than Whisper.',
-    };
-  }
-
-  if (asksIdentity && phraseIsMentioned(text, 'whisper')) {
-    return {
-      type: 'fact',
-      answer: 'Jesse “Whisper” Winston is Eli Callahan’s immediate outlaw boss and primary abuser. He recruited Eli at fifteen by exploiting Eli’s anger toward Jace, beat him repeatedly, later shot Krys, and was killed by Eli moments afterward.',
-    };
-  }
-
-  if (asksIdentity && phraseIsMentioned(text, 'hiram')) {
-    return {
-      type: 'fact',
-      answer: 'Hiram is one of Whisper Winston’s gang members. His complaints against Eli often lead to Whisper punishing and beating Eli.',
-    };
-  }
-
-  if (asksIdentity && phraseIsMentioned(text, 'hammer')) {
-    return {
-      type: 'fact',
-      answer: 'Hammer McCall is a longtime Five Oaks ranch hand, trail boss, and crew leader. He is blunt, capable, dependable, and protective of the men who ride under him.',
-    };
-  }
-
-  if (asksIdentity && (phraseIsMentioned(text, 'tsula') || phraseIsMentioned(text, 'tsula red hawk') || phraseIsMentioned(text, 'tula'))) {
-    return {
-      type: 'fact',
-      answer: 'Tsula Red Hawk is a twelve-year-old boy and Waya Red Hawk’s nephew. Waya has raised him for the last four years after Tsula’s parents, Awinita “Fawn” Red Hawk and Kanuna Sixkiller, died. Jennifer becomes Tsula’s stepmother when she marries Waya.',
-    };
-  }
+  if (asksIdentity && text.includes('wayas uncle')) return { type: 'fact', answer: 'Galilahi Red Hawk is Waya Red Hawk’s uncle. He is also part of Tsula Red Hawk’s extended family.' };
+  if (asksIdentity && text.includes('wayas aunt')) return { type: 'fact', answer: 'Salali Red Hawk is Waya Red Hawk’s aunt. She is also part of Tsula Red Hawk’s extended family.' };
+  if (asksIdentity && text.includes('whispers brother')) return { type: 'fact', answer: 'James “Ironjaw” Winston is Jesse “Whisper” Winston’s older brother. Ironjaw leads the larger outlaw outfit. He is dangerous and intimidating, but less impulsive than Whisper.' };
+  if (asksIdentity && phraseIsMentioned(text, 'whisper')) return { type: 'fact', answer: 'Jesse “Whisper” Winston is Eli Callahan’s immediate outlaw boss and primary abuser. He recruited Eli at fifteen by exploiting Eli’s anger toward Jace, beat him repeatedly, later shot Krys, and was killed by Eli moments afterward.' };
+  if (asksIdentity && phraseIsMentioned(text, 'hiram')) return { type: 'fact', answer: 'Hiram is one of Whisper Winston’s gang members. His complaints against Eli often lead to Whisper punishing and beating Eli.' };
+  if (asksIdentity && phraseIsMentioned(text, 'hammer')) return { type: 'fact', answer: 'Hammer McCall is a longtime Five Oaks ranch hand, trail boss, and crew leader. He is blunt, capable, dependable, and protective of the men who ride under him.' };
+  if (asksIdentity && (phraseIsMentioned(text, 'tsula') || phraseIsMentioned(text, 'tsula red hawk') || phraseIsMentioned(text, 'tula'))) return { type: 'fact', answer: 'Tsula Red Hawk is a twelve-year-old boy and Waya Red Hawk’s nephew. Waya has raised him for the last four years after Tsula’s parents, Awinita “Fawn” Red Hawk and Kanuna Sixkiller, died. Jennifer becomes Tsula’s stepmother when she marries Waya.' };
 
   const asksOwner = text.includes('whose horse') || text.includes('who owns') || text.includes('belongs to') || text.includes('owner of');
   if (asksOwner && phraseIsMentioned(text, 'lark')) return { type: 'fact', answer: 'Lark is Krys Callahan Kincaid’s horse. She originally belonged to Roger Callahan, but she chose Krys and became her mare.' };
@@ -144,49 +118,52 @@ function directCanonFact(text) {
   if (asksOwner && phraseIsMentioned(text, 'ledger')) return { type: 'fact', answer: 'Ledger is Matt Haskins’s horse.' };
   if (asksOwner && phraseIsMentioned(text, 'cinder')) return { type: 'fact', answer: 'Cinder is Luke Rawlins’s horse.' };
   if (asksOwner && phraseIsMentioned(text, 'barney')) return { type: 'fact', answer: 'Barney is Jace Callahan’s horse.' };
-
   return null;
 }
 
 export function resolveSubject(question) {
-  const text = normalizeQuestion(question).replace(/\s+/g, ' ').trim();
+  const text = normalizeQuestion(question);
   const expanded = wantsExpandedAnswer(question);
   const mentionedSubjects = resolveMentionedSubjects(question);
   const directFact = directCanonFact(text);
-
   if (directFact) return directFact;
-
-  const continuity = checkContinuity(question);
-  const bookLocation = findBookLocation(question);
-  const inference = inferCanonAnswer(question);
-
-  if (continuity?.answer) return continuity;
-  if (bookLocation?.answer) return bookLocation;
-  if (inference?.answer) return inference;
 
   if (asksForMultiSubjectAnswer(question, mentionedSubjects)) {
     const directAnswer = buildMultiSubjectAnswer(mentionedSubjects, expanded);
-
     if (asksHowConnected(question, mentionedSubjects) && directAnswer.includes('no direct relationship link')) {
       const path = findRelationshipPath(mentionedSubjects[0].key, mentionedSubjects[1].key);
       const indirectAnswer = pathAnswer(path);
       if (indirectAnswer) return { type: 'relationship-path', subjects: mentionedSubjects, path, answer: indirectAnswer };
     }
-
     return { type: 'multi-subject', subjects: mentionedSubjects, answer: directAnswer };
   }
 
+  const character = findCharacterKnowledge(question);
+  if (character) return { type: 'character', entry: character, answer: expanded ? character.full : character.short };
+
   const relationship = findRelationshipKnowledge(question);
+  if (relationship) return { type: 'relationship', entry: relationship, answer: expanded ? relationship.summary : relationship.direct };
+
+  if (isIdentityQuestion(text)) {
+    return {
+      type: 'unknown-entity',
+      answer: 'I could not find an exact canon record for that name. I will not substitute a different character, horse, bull, cow, or place.',
+    };
+  }
+
   const place = findPlaceKnowledge(question);
   const event = findEventKnowledge(question);
   const timeline = findTimelineKnowledge(question);
-  const character = findCharacterKnowledge(question);
-
-  if (relationship) return { type: 'relationship', entry: relationship, answer: expanded ? relationship.summary : relationship.direct };
   if (place) return { type: 'place', entry: place, answer: expanded ? place.full : place.short };
   if (event) return { type: 'event', entry: event, answer: expanded ? event.full : event.short };
   if (timeline) return { type: 'timeline', entry: timeline, answer: expanded ? timeline.full : timeline.short };
-  if (character) return { type: 'character', entry: character, answer: expanded ? character.full : character.short };
+
+  const continuity = checkContinuity(question);
+  const bookLocation = findBookLocation(question);
+  const inference = inferCanonAnswer(question);
+  if (continuity?.answer) return continuity;
+  if (bookLocation?.answer) return bookLocation;
+  if (inference?.answer) return inference;
 
   if (text.includes('who') && text.includes('jake') && text.includes('marry')) return { type: 'fact', answer: 'Jake married Krys Callahan.' };
   if (text.includes('when') && text.includes('jake') && text.includes('marry')) return { type: 'fact', answer: 'Jake married Krys in the late 1880s.' };
