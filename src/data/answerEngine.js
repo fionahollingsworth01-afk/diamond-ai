@@ -19,16 +19,22 @@ function records(knowledge, type = '') {
 function aliases(record) {
   return new Set([record.name, ...(record.aliases || [])].map(normalize).filter(Boolean));
 }
+function dossierScore(record, wanted) {
+  const text = String(record.text || '');
+  const lines = text.replace(/\r/g, '').split('\n').map((line) => line.trim()).filter(Boolean);
+  const firstLineExact = normalize(lines[0] || '') === wanted ? 5000 : 0;
+  const exactName = normalize(record.name) === wanted ? 10000 : 0;
+  const fieldCount = lines.filter((line) => /^(Given Name|Age|Born|Role|Family|Core Spine|Background Foundation|Core Formation|Core Beliefs|Greatest Fear|Greatest Strength|Fatal Flaw|Psychological Markers|Relationship|Locked Thematic Core):/i.test(line)).length;
+  const completeDossier = fieldCount >= 3 ? 8000 : fieldCount * 1200;
+  const thinPenalty = lines.length <= 2 ? -6000 : 0;
+  return exactName + firstLineExact + completeDossier + thinPenalty + Math.min(text.length, 3000) / 10;
+}
 function exactRecord(subject, knowledge, type = '') {
   const wanted = normalize(subject);
   if (!wanted) return null;
   const candidates = records(knowledge, type).filter((record) => aliases(record).has(wanted));
   if (!candidates.length) return null;
-  return candidates.sort((a, b) => {
-    const ae = normalize(a.name) === wanted ? 1 : 0;
-    const be = normalize(b.name) === wanted ? 1 : 0;
-    return be - ae || String(b.text || '').length - String(a.text || '').length;
-  })[0];
+  return candidates.sort((a, b) => dossierScore(b, wanted) - dossierScore(a, wanted))[0];
 }
 function identitySubject(question) {
   return clean(question)
@@ -41,6 +47,19 @@ function identitySubject(question) {
 }
 function isIdentityQuestion(question) {
   return /^(who|what)\s+(is|was|are|were)\b/i.test(clean(question)) || /^(tell me|what do you know|show me)\b/i.test(clean(question));
+}
+function familySourceAnswer(subject, knowledge) {
+  let wanted = normalize(subject).replace(/^the\s+/, '').trim();
+  if (!wanted.includes('family')) return '';
+  const familyName = wanted.replace(/\s+family$/, '').trim();
+  const source = knowledge.find((item) => {
+    const title = normalize(item.title || '');
+    const file = normalize(item.file || '');
+    return title.includes(`${familyName} family`) || file.includes(`${familyName} family`);
+  });
+  if (!source?.rawText) return '';
+  const lines = String(source.rawText).replace(/\r/g, '').split('\n').map((line) => line.trim()).filter(Boolean);
+  return dedupeLines(lines.slice(0, 45).join('\n'));
 }
 function relationRequest(question) {
   const text = normalize(question);
@@ -105,7 +124,7 @@ function relationshipAnswer(question, knowledge) {
     .filter((item) => !['father','mother','sister','brother','uncle','aunt','wife','husband','son','daughter','cousin'].includes(normalize(item.name)));
   if (!unique.length) return 'I could not find that relationship in the current canon records.';
   if (['cousins','parents','siblings'].includes(request.relation)) return unique.map((item) => item.name).join(', ');
-  unique.sort((a, b) => String(a.text || '').length - String(b.text || '').length);
+  unique.sort((a, b) => dossierScore(b, normalize(b.name)) - dossierScore(a, normalize(a.name)));
   return dedupeLines(unique[0].text);
 }
 function bookAnswer(question, books) {
@@ -140,6 +159,8 @@ export function buildAnswer(question, books, knowledge) {
   if (relationship) return relationship;
   if (isIdentityQuestion(question)) {
     const subject = identitySubject(question);
+    const family = familySourceAnswer(subject, knowledge);
+    if (family) return family;
     const found = exactRecord(subject, knowledge);
     if (found) return dedupeLines(found.text);
     return 'I could not find an exact canon record for that name. I will not substitute a different person, animal, place, or event.';
