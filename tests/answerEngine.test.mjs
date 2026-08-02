@@ -64,6 +64,9 @@ const books = [
 assert.match(guardedAnswer('Who is Krys?', books, knowledge), /Heart of Five Oaks/i);
 assert.equal(guardedAnswer('Did Jace and Susanna ever marry?', books, knowledge), 'No. Jace and Susanna did not marry.');
 assert.match(guardedAnswer('Is Tsula Waya’s nephew?', books, knowledge), /^Yes\./);
+assert.match(guardedAnswer('Who is Tsula?', books, knowledge), /Waya Red Hawk’s nephew/i);
+assert.match(guardedAnswer('Who raised Tsula?', books, knowledge), /Waya Red Hawk raised Tsula/i);
+assert.match(guardedAnswer('Who raised Waya?', books, knowledge), /grandparents/i);
 assert.match(guardedAnswer('What was Matt’s horse named?', books, knowledge), /Ledger/);
 assert.match(guardedAnswer('Who are Krys’s brothers?', books, knowledge), /Jace.*Rance.*Royce.*Rhys/i);
 assert.match(guardedAnswer('Which book has Jennifer and Waya married?', books, knowledge), /Where the Fire Meets the Sky/);
