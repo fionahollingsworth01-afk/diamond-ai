@@ -5,6 +5,7 @@ import {
   getCharacterById,
   relationships,
 } from './fiveOaksData.js';
+import { lockedCanonAnswer } from './lockedCanon.js';
 
 const STOP_WORDS = new Set([
   'about', 'and', 'are', 'book', 'character', 'does', 'for', 'from',
@@ -135,6 +136,9 @@ export function formatSearchResult({ type, record }) {
 }
 
 export function answerFiveOaksQuestion(question) {
+  const locked = lockedCanonAnswer(question);
+  if (locked) return locked;
+
   const terms = tokenize(question);
   if (!terms.size) {
     return 'Enter a character name, book title, theme, relationship, or animal to search the current Five Oaks records.';
@@ -142,7 +146,7 @@ export function answerFiveOaksQuestion(question) {
 
   const results = searchFiveOaks(question);
   if (!results.length) {
-    return 'No matching records are available in the current Five Oaks snapshot. Diamond cannot provide facts outside these records.';
+    return 'I could not verify that in the current Five Oaks records. I will not invent an answer.';
   }
 
   return `Search results\n\n${results.map(formatSearchResult).join('\n\n---\n\n')}`;
