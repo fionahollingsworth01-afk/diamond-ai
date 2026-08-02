@@ -4,14 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node scripts/buildBookIndex.mjs && node scripts/rebuildKnowledgeIndex.mjs && vite",
-    "build": "node scripts/buildBookIndex.mjs && node scripts/rebuildKnowledgeIndex.mjs && vite build",
-    "test": "node tests/answerEngine.test.mjs",
+    "dev": "npm run validate:data && vite",
+    "validate:data": "node scripts/validateFiveOaksData.mjs",
+    "build": "npm run validate:data && vite build",
+    "test": "npm run validate:data && node tests/fiveOaksSearch.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
-    "mammoth": "latest",
     "vite": "latest",
     "react": "latest",
     "react-dom": "latest"

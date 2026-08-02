@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { canonRules, characters, families } from './data/diamondData.js';
-import { bookIndex, bookIndexErrors } from './data/bookIndex.js';
-import { knowledgeIndex, knowledgeIndexErrors } from './data/knowledgeIndex.js';
-import { relationshipGraph } from './data/relationshipGraph.js';
-import { guardedAnswer } from './data/canonGuard.js';
+import {
+  animals,
+  books,
+  characters,
+  relationshipViews,
+  unavailableCanonRuleData,
+  unavailableFamilyData,
+} from './data/fiveOaksData.js';
+import { answerFiveOaksQuestion } from './data/fiveOaksSearch.js';
 import diamondPortrait from '../DIAMOND.jpg';
 
 const tabs = [
@@ -37,10 +41,9 @@ function App() {
   const [voices, setVoices] = useState([]);
   const [speaking, setSpeaking] = useState(false);
 
-  const loadedBooks = bookIndex.filter((book) => (book.sections || []).length > 0);
-  const loadedKnowledge = knowledgeIndex.filter((source) => (source.sections || []).length > 0 || source.rawText);
-  const answer = useMemo(() => guardedAnswer(question, loadedBooks, loadedKnowledge), [question, loadedBooks, loadedKnowledge]);
+  const answer = useMemo(() => answerFiveOaksQuestion(question), [question]);
   const diamondVoice = useMemo(() => pickFemaleVoice(voices), [voices]);
+  const snapshotRecordCount = characters.length + relationshipViews.length + animals.length;
 
   useEffect(() => {
     if (!('speechSynthesis' in window)) return undefined;
@@ -69,14 +72,14 @@ function App() {
 
   return (
     <main className="appShell">
-      <section className="hero heroWithFace"><div><p className="eyebrow">The World of Five Oaks</p><h1>Diamond</h1><p className="tagline">Five Oaks canon assistant, character encyclopedia, and continuity guard.</p></div><DiamondFace speaking={speaking} /><div className="statusCard"><span>Library</span><strong>{loadedBooks.length} of {bookIndex.length} books indexed</strong><span>Canon databases</span><strong>{loadedKnowledge.length} of {knowledgeIndex.length} indexed</strong></div></section>
+      <section className="hero heroWithFace"><div><p className="eyebrow">The World of Five Oaks</p><h1>Diamond</h1><p className="tagline">Five Oaks canon assistant, character encyclopedia, and continuity guard.</p></div><DiamondFace speaking={speaking} /><div className="statusCard"><span>Library</span><strong>{books.length} current Five Oaks books</strong><span>Canon databases</span><strong>{snapshotRecordCount} current snapshot records</strong></div></section>
       <nav className="tabs" aria-label="Diamond sections">{tabs.map((tab) => <button key={tab.label} className={activeTab === tab.label ? 'active' : ''} onClick={() => setActiveTab(tab.label)}><span aria-hidden="true">{tab.icon}</span> {tab.label}</button>)}</nav>
-      {activeTab === 'Ask Diamond' && <section className="panel askPanel"><h2>Ask Diamond</h2><p>Books 1-{loadedBooks.length} and {loadedKnowledge.length} canon databases are indexed.</p><textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask Diamond..." aria-label="Ask Diamond a Five Oaks question" /><div className="answerBox"><span>Diamond says</span><p style={{ whiteSpace: 'pre-wrap' }}>{answer}</p></div><div className="voiceControls"><button type="button" onClick={speakAnswer} disabled={!answer}>Hear Diamond</button><button type="button" onClick={stopSpeaking}>Stop</button><button type="button" onClick={clearAskDiamond}>Clear</button><p>{diamondVoice ? `Voice selected: ${diamondVoice.name}` : 'Female voice loading...'}</p></div></section>}
-      {activeTab === 'Books' && <section className="gridPanel">{bookIndex.map((book) => <article className="card" key={book.file}><h2>Book {book.number}</h2><h3>{book.title}</h3><p>{(book.sections || []).length ? `${book.sections.length} searchable sections indexed.` : 'Not indexed yet.'}</p></article>)}{bookIndexErrors.map((error) => <article className="card" key={error.file}><h3>Index warning</h3><p>{error.book}: {error.error}</p></article>)}{knowledgeIndexErrors.map((error) => <article className="card" key={error.file}><h3>Knowledge warning</h3><p>{error.title}: {error.error}</p></article>)}</section>}
-      {activeTab === 'Characters' && <section className="gridPanel">{characters.map((character) => <article className="card" key={character.name}><h2>{character.name}</h2><p className="muted">{character.givenName}</p><h3>{character.role}</h3><p>{character.core}</p>{character.horse && <p><strong>Horse:</strong> {character.horse}</p>}</article>)}</section>}
-      {activeTab === 'Relationships' && <section className="gridPanel"><article className="card"><h2>Relationship Graph</h2><p>{relationshipGraph.nodes.length} subjects and {relationshipGraph.edges.length} direct canon links are available.</p></article>{relationshipGraph.edges.map((item) => <article className="card" key={`${item.source}-${item.target}`}><h2>{item.title}</h2><p>{item.summary}</p></article>)}</section>}
-      {activeTab === 'Families' && <section className="gridPanel">{families.map((item) => <article className="card" key={item.family}><h2>{item.family}</h2><p>{item.notes}</p></article>)}</section>}
-      {activeTab === 'Canon Rules' && <section className="panel"><h2>Diamond’s Canon Rules</h2><ul className="rulesList">{canonRules.map((rule) => <li key={rule}>{rule}</li>)}</ul></section>}
+      {activeTab === 'Ask Diamond' && <section className="panel askPanel"><h2>Ask Diamond</h2><p>{books.length} books and {snapshotRecordCount} current Five Oaks records are searchable.</p><textarea value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask Diamond..." aria-label="Ask Diamond a Five Oaks question" /><div className="answerBox"><span>Diamond says</span><p style={{ whiteSpace: 'pre-wrap' }}>{answer}</p></div><div className="voiceControls"><button type="button" onClick={speakAnswer} disabled={!answer}>Hear Diamond</button><button type="button" onClick={stopSpeaking}>Stop</button><button type="button" onClick={clearAskDiamond}>Clear</button><p>{diamondVoice ? `Voice selected: ${diamondVoice.name}` : 'Female voice loading...'}</p></div></section>}
+      {activeTab === 'Books' && <section className="gridPanel">{books.map((book) => <article className="card" key={book.id}><h2>Book {book.order}</h2><h3>{book.title}</h3><p>{book.plot_summary}</p></article>)}</section>}
+      {activeTab === 'Characters' && <section className="gridPanel">{characters.map((character) => <article className="card" key={character.id}><h2>{character.name}</h2><p className="muted">{character.aliases?.join(', ')}</p><h3>{character.role}</h3><p>{character.description}</p></article>)}</section>}
+      {activeTab === 'Relationships' && <section className="gridPanel"><article className="card"><h2>Relationship Graph</h2><p>{characters.length} subjects and {relationshipViews.length} direct Five Oaks links are available.</p></article>{relationshipViews.map((relationship) => <article className="card" key={relationship.id}><h2>{relationship.firstCharacter?.name || 'Unknown'} and {relationship.secondCharacter?.name || 'Unknown'}</h2><p className="muted">{relationship.relationship_type}</p><p>{relationship.description}</p></article>)}</section>}
+      {activeTab === 'Families' && <section className="gridPanel"><article className="card"><h2>Families</h2><p>{unavailableFamilyData}</p></article></section>}
+      {activeTab === 'Canon Rules' && <section className="panel"><h2>Diamond’s Canon Rules</h2><p>{unavailableCanonRuleData}</p></section>}
     </main>
   );
 }
