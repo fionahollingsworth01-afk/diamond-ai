@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { buildAnswer } from '../src/data/answerEngine.js';
+import { guardedAnswer } from '../src/data/canonGuard.js';
 
 const knowledge = [
   {
@@ -11,12 +11,12 @@ const knowledge = [
       {
         id: 'jace',
         name: 'Jace Callahan',
-        text: 'Jace Callahan\nRole: Founder and rancher\nFamily: Partner of Susanna Pike. They never married.\nHorse: Barney',
+        text: 'Jace Callahan\nRole: Founder and rancher\nFamily: Partner of Susanna Pike. Jace Callahan and Susanna Pike never married.\nHorse: Barney',
       },
       {
         id: 'susanna',
         name: 'Susanna Pike',
-        text: 'Susanna Pike\nRole: Five Oaks matriarch\nFamily: Lifelong partner of Jace Callahan. They never married.',
+        text: 'Susanna Pike\nRole: Five Oaks matriarch\nFamily: Lifelong partner of Jace Callahan. Jace Callahan and Susanna Pike never married.',
       },
       {
         id: 'krys',
@@ -61,12 +61,12 @@ const books = [
   },
 ];
 
-assert.match(buildAnswer('Who is Krys?', books, knowledge), /Heart of Five Oaks/i);
-assert.equal(buildAnswer('Did Jace and Susanna ever marry?', books, knowledge), 'No. Jace and Susanna did not marry.');
-assert.match(buildAnswer('Is Tsula Waya’s nephew?', books, knowledge), /^Yes\./);
-assert.match(buildAnswer('What was Matt’s horse named?', books, knowledge), /Ledger/);
-assert.match(buildAnswer('Who are Krys’s brothers?', books, knowledge), /Jace|Rance|Royce|Rhys/);
-assert.match(buildAnswer('Which book has Jennifer and Waya married?', books, knowledge), /Where the Fire Meets the Sky/);
-assert.match(buildAnswer('Who is Somebody Invented?', books, knowledge), /will not invent/i);
+assert.match(guardedAnswer('Who is Krys?', books, knowledge), /Heart of Five Oaks/i);
+assert.equal(guardedAnswer('Did Jace and Susanna ever marry?', books, knowledge), 'No. Jace and Susanna did not marry.');
+assert.match(guardedAnswer('Is Tsula Waya’s nephew?', books, knowledge), /^Yes\./);
+assert.match(guardedAnswer('What was Matt’s horse named?', books, knowledge), /Ledger/);
+assert.match(guardedAnswer('Who are Krys’s brothers?', books, knowledge), /Jace.*Rance.*Royce.*Rhys/i);
+assert.match(guardedAnswer('Which book has Jennifer and Waya married?', books, knowledge), /Where the Fire Meets the Sky/);
+assert.match(guardedAnswer('Who is Somebody Invented?', books, knowledge), /will not invent/i);
 
 console.log('Diamond answer-engine regression tests passed.');
