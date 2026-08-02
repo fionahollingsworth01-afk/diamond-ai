@@ -13,6 +13,10 @@ function normalize(value = '') {
     .trim();
 }
 
+function titleName(value = '') {
+  return clean(value).split(/\s+/).map((word) => word ? word[0].toUpperCase() + word.slice(1) : '').join(' ');
+}
+
 function records(knowledge, type = 'characters') {
   return knowledge.flatMap((source) => source.type === type ? (source.sections || []) : []);
 }
@@ -28,6 +32,16 @@ function aliases(record) {
 function findPerson(name, knowledge) {
   const wanted = normalize(name);
   return records(knowledge).find((record) => aliases(record).includes(wanted)) || null;
+}
+
+function displayName(name, knowledge) {
+  const person = findPerson(name, knowledge);
+  if (person?.name) {
+    const wanted = normalize(name);
+    const exactAlias = [person.name, ...(person.aliases || [])].find((value) => normalize(value) === wanted);
+    return exactAlias || person.name.split(/\s+/)[0] || titleName(name);
+  }
+  return titleName(name);
 }
 
 function listNames(value = '') {
@@ -80,6 +94,8 @@ function negativeMarriage(question, knowledge) {
 
   const first = normalize(match[1]);
   const second = normalize(match[2]);
+  const firstDisplay = displayName(match[1], knowledge);
+  const secondDisplay = displayName(match[2], knowledge);
   const allLines = records(knowledge).flatMap((record) => String(record.text || '').split(/\r?\n/));
   const matching = allLines.map((line) => ({ raw: clean(line), text: normalize(line) }))
     .filter((line) => line.text.includes(first) && line.text.includes(second));
@@ -88,8 +104,8 @@ function negativeMarriage(question, knowledge) {
   const yes = matching.find((line) => /\bmarried\b|wife|husband/.test(line.text) && !/never married|did not marry|didnt marry/.test(line.text));
 
   if (no && yes) return 'I found conflicting canon records about that marriage, so I will not guess.';
-  if (no) return `No. ${clean(match[1])} and ${clean(match[2])} did not marry.`;
-  if (yes) return `Yes. The canon records identify ${clean(match[1])} and ${clean(match[2])} as married.`;
+  if (no) return `No. ${firstDisplay} and ${secondDisplay} did not marry.`;
+  if (yes) return `Yes. The canon records identify ${firstDisplay} and ${secondDisplay} as married.`;
   return '';
 }
 
@@ -105,7 +121,8 @@ function directKinship(question, knowledge) {
     const value = normalize(line);
     return value.includes(subject) && value.includes(person) && value.includes(relation);
   });
-  return found ? `Yes. The canon records identify ${clean(match[1])} as ${clean(match[2])}'s ${relation}.` : '';
+  if (!found) return '';
+  return `Yes. The canon records identify ${displayName(match[1], knowledge)} as ${displayName(match[2], knowledge)}'s ${relation}.`;
 }
 
 export function guardedAnswer(question, books, knowledge) {
