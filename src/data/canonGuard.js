@@ -54,6 +54,100 @@ function listNames(value = '') {
     .filter((item) => !/^(his|her|their|the|a|an)$/i.test(item));
 }
 
+function identitySubject(question) {
+  const text = clean(question).replace(/[?!.]+$/g, '').trim();
+  const patterns = [
+    /^(?:who|what)\s+(?:is|was)\s+(.+)$/i,
+    /^tell me (?:everything )?(?:you know )?about\s+(.+)$/i,
+    /^what do you know about\s+(.+)$/i,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) return clean(match[1]);
+  }
+  return '';
+}
+
+function nextNonBlank(lines, index) {
+  for (let i = index + 1; i < lines.length; i += 1) {
+    if (clean(lines[i])) return i;
+  }
+  return -1;
+}
+
+function isDossierHeading(lines, index) {
+  const line = clean(lines[index]);
+  if (!line || line.includes(':')) return false;
+  const next = nextNonBlank(lines, index);
+  return next >= 0 && /^role\s*:/i.test(clean(lines[next]));
+}
+
+function subjectMatchesHeading(subject, heading) {
+  const wanted = normalize(subject);
+  const candidate = normalize(heading);
+  if (!wanted || !candidate) return false;
+  return candidate === wanted || candidate.startsWith(`${wanted} `);
+}
+
+function fieldValue(lines, label) {
+  const pattern = new RegExp(`^${label}\\s*:\\s*(.*)$`, 'i');
+  for (let i = 0; i < lines.length; i += 1) {
+    const match = clean(lines[i]).match(pattern);
+    if (!match) continue;
+    if (match[1]) return clean(match[1]);
+    const next = nextNonBlank(lines, i);
+    return next >= 0 ? clean(lines[next]) : '';
+  }
+  return '';
+}
+
+function familyLines(lines) {
+  const start = lines.findIndex((line) => /^family\s*:/i.test(clean(line)));
+  if (start < 0) return [];
+  const found = [];
+  for (let i = start + 1; i < lines.length; i += 1) {
+    const line = clean(lines[i]);
+    if (!line) continue;
+    if (/^[A-Za-z][A-Za-z ]{1,40}:/.test(line)) break;
+    found.push(line);
+  }
+  return found;
+}
+
+function dossierIdentity(question, knowledge) {
+  const subject = identitySubject(question);
+  if (!subject) return '';
+
+  for (const source of knowledge) {
+    const raw = String(source.rawText || '');
+    if (!raw) continue;
+    const lines = raw.replace(/\r/g, '').split('\n');
+
+    for (let i = 0; i < lines.length; i += 1) {
+      if (!isDossierHeading(lines, i) || !subjectMatchesHeading(subject, lines[i])) continue;
+      let end = lines.length;
+      for (let j = i + 1; j < lines.length; j += 1) {
+        if (isDossierHeading(lines, j)) {
+          end = j;
+          break;
+        }
+      }
+
+      const dossier = lines.slice(i, end);
+      const heading = clean(dossier[0]);
+      const role = fieldValue(dossier, 'Role');
+      const family = familyLines(dossier);
+      const core = fieldValue(dossier, 'Core Spine');
+      const answer = [heading];
+      if (role) answer.push(`Role: ${role}`);
+      if (family.length) answer.push(`Family: ${family.join(' ')}`);
+      if (core) answer.push(`Core: ${core}`);
+      return answer.join('\n');
+    }
+  }
+  return '';
+}
+
 function relationFromOwnRecord(question, knowledge) {
   const text = normalize(question);
   const match = text.match(/^who (?:is|was|are|were) (.+?)s (brother|brothers|sister|sisters|siblings|parent|parents|father|mother|uncle|aunt|cousin|cousins|son|sons|daughter|daughters|children)$/);
@@ -143,6 +237,7 @@ function directKinship(question, knowledge) {
 export function guardedAnswer(question, books, knowledge) {
   if (!clean(question)) return '';
   return lockedCanonAnswer(question) ||
+    dossierIdentity(question, knowledge) ||
     negativeMarriage(question, knowledge) ||
     directKinship(question, knowledge) ||
     relationFromOwnRecord(question, knowledge) ||
