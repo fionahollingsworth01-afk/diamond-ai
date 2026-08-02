@@ -75,6 +75,78 @@ function nextNonBlank(lines, index) {
   return -1;
 }
 
+function fieldValue(lines, label) {
+  const pattern = new RegExp(`^${label}\\s*:\\s*(.*)$`, 'i');
+  for (let i = 0; i < lines.length; i += 1) {
+    const match = clean(lines[i]).match(pattern);
+    if (!match) continue;
+    if (match[1]) return clean(match[1]);
+    const next = nextNonBlank(lines, i);
+    return next >= 0 ? clean(lines[next]) : '';
+  }
+  return '';
+}
+
+function horseIdentity(record) {
+  const lines = String(record.text || '').replace(/\r/g, '').split('\n');
+  const owner = fieldValue(lines, 'Owner');
+  const breed = fieldValue(lines, 'Breed');
+  const color = fieldValue(lines, 'Color');
+  const gender = fieldValue(lines, 'Gender');
+  const temperament = fieldValue(lines, 'Temperament');
+  const core = fieldValue(lines, 'Core Spine');
+  const answer = [record.name];
+  if (owner) answer.push(`Owner: ${owner}`);
+  if (breed) answer.push(`Breed: ${breed}`);
+  if (color) answer.push(`Color: ${color}`);
+  if (gender) answer.push(`Gender: ${gender}`);
+  if (temperament) answer.push(`Temperament: ${temperament}`);
+  if (core) answer.push(`Core: ${core}`);
+  return answer.join('\n');
+}
+
+function findHorse(name, knowledge) {
+  const wanted = normalize(name);
+  if (!wanted) return null;
+  return records(knowledge, 'horses').find((record) => aliases(record).includes(wanted)) || null;
+}
+
+function horseAnswer(question, knowledge) {
+  const raw = clean(question).replace(/[?!.]+$/g, '').trim();
+  const text = normalize(raw);
+
+  let subject = identitySubject(raw);
+  if (subject) {
+    const horse = findHorse(subject, knowledge);
+    if (horse) return horseIdentity(horse);
+  }
+
+  let match = text.match(/^who (?:owns|owned|rides|rode) (.+)$/);
+  if (!match) match = text.match(/^whose horse (?:is|was) (.+)$/);
+  if (!match) match = text.match(/^who (?:is|was) (.+?)s owner$/);
+  if (match) {
+    const horse = findHorse(match[1], knowledge);
+    if (!horse) return '';
+    const owner = fieldValue(String(horse.text || '').split(/\r?\n/), 'Owner');
+    return owner ? `${horse.name} belongs to ${owner}.` : horseIdentity(horse);
+  }
+
+  match = text.match(/^what horse (?:does|did) (.+?) (?:ride|own)$/);
+  if (!match) match = text.match(/^what (?:is|was) (.+?)s horse(?:s name)?$/);
+  if (!match) match = text.match(/^what horse belongs to (.+)$/);
+  if (!match) match = text.match(/^which horse (?:does|did) (.+?) (?:ride|own)$/);
+  if (match) {
+    const owner = normalize(match[1]);
+    const horse = records(knowledge, 'horses').find((record) => {
+      const lines = String(record.text || '').replace(/\r/g, '').split('\n');
+      return normalize(fieldValue(lines, 'Owner')) === owner;
+    });
+    return horse ? horseIdentity(horse) : '';
+  }
+
+  return '';
+}
+
 function isDossierHeading(lines, index) {
   const line = clean(lines[index]);
   if (!line || line.includes(':')) return false;
@@ -87,18 +159,6 @@ function subjectMatchesHeading(subject, heading) {
   const candidate = normalize(heading);
   if (!wanted || !candidate) return false;
   return candidate === wanted || candidate.startsWith(`${wanted} `);
-}
-
-function fieldValue(lines, label) {
-  const pattern = new RegExp(`^${label}\\s*:\\s*(.*)$`, 'i');
-  for (let i = 0; i < lines.length; i += 1) {
-    const match = clean(lines[i]).match(pattern);
-    if (!match) continue;
-    if (match[1]) return clean(match[1]);
-    const next = nextNonBlank(lines, i);
-    return next >= 0 ? clean(lines[next]) : '';
-  }
-  return '';
 }
 
 function familyLines(lines) {
@@ -237,6 +297,7 @@ function directKinship(question, knowledge) {
 export function guardedAnswer(question, books, knowledge) {
   if (!clean(question)) return '';
   return lockedCanonAnswer(question) ||
+    horseAnswer(question, knowledge) ||
     dossierIdentity(question, knowledge) ||
     negativeMarriage(question, knowledge) ||
     directKinship(question, knowledge) ||
