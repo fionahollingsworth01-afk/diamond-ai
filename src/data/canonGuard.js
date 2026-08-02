@@ -113,15 +113,29 @@ function directKinship(question, knowledge) {
   const text = normalize(question);
   const match = text.match(/^is (.+?) (.+?)s (son|daughter|nephew|niece|brother|sister|father|mother|uncle|aunt)$/);
   if (!match) return '';
+
   const subject = normalize(match[1]);
   const person = normalize(match[2]);
   const relation = match[3];
-  const lines = records(knowledge).flatMap((record) => String(record.text || '').split(/\r?\n/));
-  const found = lines.some((line) => {
+  const subjectRecord = findPerson(match[1], knowledge);
+  const personRecord = findPerson(match[2], knowledge);
+
+  const subjectOwnRecord = subjectRecord && String(subjectRecord.text || '').split(/\r?\n/).some((line) => {
+    const value = normalize(line);
+    return value.includes(person) && value.includes(relation);
+  });
+
+  const personOwnRecord = personRecord && String(personRecord.text || '').split(/\r?\n/).some((line) => {
+    const value = normalize(line);
+    return value.includes(subject) && value.includes(relation);
+  });
+
+  const sharedLine = records(knowledge).flatMap((record) => String(record.text || '').split(/\r?\n/)).some((line) => {
     const value = normalize(line);
     return value.includes(subject) && value.includes(person) && value.includes(relation);
   });
-  if (!found) return '';
+
+  if (!subjectOwnRecord && !personOwnRecord && !sharedLine) return '';
   return `Yes. The canon records identify ${displayName(match[1], knowledge)} as ${displayName(match[2], knowledge)}'s ${relation}.`;
 }
 
