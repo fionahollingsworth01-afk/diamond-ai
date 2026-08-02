@@ -1,4 +1,5 @@
 import { buildAnswer } from './answerEngine.js';
+import { lockedCanonAnswer } from './lockedCanon.js';
 
 function clean(value = '') {
   return String(value).replace(/\r/g, '').replace(/[ \t]+/g, ' ').trim();
@@ -141,7 +142,8 @@ function directKinship(question, knowledge) {
 
 export function guardedAnswer(question, books, knowledge) {
   if (!clean(question)) return '';
-  return negativeMarriage(question, knowledge) ||
+  return lockedCanonAnswer(question) ||
+    negativeMarriage(question, knowledge) ||
     directKinship(question, knowledge) ||
     relationFromOwnRecord(question, knowledge) ||
     buildAnswer(question, books, knowledge);
