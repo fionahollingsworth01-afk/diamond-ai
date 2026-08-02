@@ -32,12 +32,41 @@ const raisedFacts = new Map([
   ['waya red hawk', 'Waya was raised by his grandparents after his parents were killed in a raid when he was a toddler.'],
 ]);
 
+const spouseFacts = new Map([
+  ['matt', 'Matt Haskins never married.'],
+  ['matt haskins', 'Matt Haskins never married.'],
+  ['jace', 'Jace Callahan and Susanna Pike were lifelong partners, but they never married.'],
+  ['jace callahan', 'Jace Callahan and Susanna Pike were lifelong partners, but they never married.'],
+  ['susanna', 'Susanna Pike and Jace Callahan were lifelong partners, but they never married.'],
+  ['susanna pike', 'Susanna Pike and Jace Callahan were lifelong partners, but they never married.'],
+  ['cole', 'Cole Callahan is married to Tate Hudson.'],
+  ['cole callahan', 'Cole Callahan is married to Tate Hudson.'],
+  ['tate', 'Tate Hudson is married to Cole Callahan.'],
+  ['tate hudson', 'Tate Hudson is married to Cole Callahan.'],
+  ['waya', 'Waya Red Hawk is married to Jennifer Callahan.'],
+  ['waya red hawk', 'Waya Red Hawk is married to Jennifer Callahan.'],
+  ['jennifer', 'Jennifer Callahan is married to Waya Red Hawk.'],
+  ['jennifer callahan', 'Jennifer Callahan is married to Waya Red Hawk.'],
+]);
+
 export function lockedCanonAnswer(question = '') {
   const text = normalize(question);
 
   let match = text.match(/^(?:who|what) (?:is|was) (.+)$/);
   if (match) {
     const answer = identityFacts.get(match[1]);
+    if (answer) return answer;
+  }
+
+  match = text.match(/^who (?:is|was) (.+?) married to$/);
+  if (match) {
+    const answer = spouseFacts.get(match[1]);
+    if (answer) return answer;
+  }
+
+  match = text.match(/^who did (.+?) marry$/);
+  if (match) {
+    const answer = spouseFacts.get(match[1]);
     if (answer) return answer;
   }
 
