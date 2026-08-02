@@ -83,4 +83,25 @@ assert.match(guardedAnswer('Who are Krys’s brothers?', books, knowledge), /Jac
 assert.match(guardedAnswer('Which book has Jennifer and Waya married?', books, knowledge), /Where the Fire Meets the Sky/);
 assert.match(guardedAnswer('Who is Somebody Invented?', books, knowledge), /will not invent/i);
 
+assert.equal(
+  guardedAnswer('How are Krys and Jace related?', books, knowledge),
+  'Krys Callahan Kincaid and Jace Callahan are sister and brother.',
+);
+assert.equal(
+  guardedAnswer('How are Krys Callahan Kincaid and Jace related?', books, knowledge),
+  'Krys Callahan Kincaid and Jace Callahan are sister and brother.',
+);
+assert.equal(
+  guardedAnswer('What is the relationship between Waya and Tsula?', books, knowledge),
+  'Waya Red Hawk is Tsula Red Hawk’s uncle and guardian. Tsula is Waya’s nephew.',
+);
+assert.equal(
+  guardedAnswer('Who is Matt Haskins married to?', books, knowledge),
+  'Matt Haskins never married.',
+);
+assert.equal(
+  guardedAnswer('How are Jake, Krys, and Matt connected?', books, knowledge),
+  'Jake Kincaid and Krys Callahan Kincaid are husband and wife. Matt Haskins is their lifelong friend and fellow founder of Five Oaks.',
+);
+
 console.log('Diamond answer-engine regression tests passed.');
