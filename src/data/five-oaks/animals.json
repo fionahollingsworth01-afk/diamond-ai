@@ -1,0 +1,67 @@
+{
+  "animals": [
+    {
+      "id": "grave",
+      "name": "Grave",
+      "species": "horse",
+      "role": "Jake's riding horse",
+      "owner_id": "jake",
+      "location": "Five Oaks barn",
+      "notes": "Jake does not let anyone else ride Grave, especially as the horse grows older."
+    },
+    {
+      "id": "lark",
+      "name": "Lark",
+      "species": "mare",
+      "role": "Krys's riding horse",
+      "owner_id": "krys",
+      "location": "Five Oaks barn",
+      "notes": "Krys rides Lark when she needs to search for Jake."
+    },
+    {
+      "id": "dusty",
+      "name": "Dusty",
+      "species": "horse",
+      "role": "Kai's horse",
+      "owner_id": "kai",
+      "location": "Five Oaks corral",
+      "notes": "Dusty patiently lets the boys climb on and off him."
+    },
+    {
+      "id": "prairie-fire",
+      "name": "Prairie Fire",
+      "species": "gelding",
+      "role": "Jennifer's horse",
+      "owner_id": "jennifer",
+      "location": "Five Oaks and the Patterson property",
+      "notes": "Jennifer rides Prairie Fire to the Patterson property."
+    },
+    {
+      "id": "ironhead",
+      "name": "Ironhead",
+      "species": "bull",
+      "role": "Breeding bull",
+      "owner_id": "",
+      "location": "Five Oaks east pasture",
+      "notes": "A difficult, dangerous bull whose calves are highly sought after."
+    },
+    {
+      "id": "biscuit",
+      "name": "Biscuit",
+      "species": "bull",
+      "role": "Cattle herd sire",
+      "owner_id": "",
+      "location": "Five Oaks cattle herd",
+      "notes": "The cattle running with Biscuit are sorted and prepared for auction."
+    },
+    {
+      "id": "stonewall",
+      "name": "Stonewall",
+      "species": "bull",
+      "role": "Breeding bull",
+      "owner_id": "",
+      "location": "Five Oaks cattle herd",
+      "notes": "Five Oaks retains Stonewall's best calves for breeding."
+    }
+  ]
+}

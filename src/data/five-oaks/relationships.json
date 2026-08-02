@@ -1,0 +1,17 @@
+{
+  "relationships": [
+    {"id": "krys-jake", "character_1": "krys", "character_2": "jake", "relationship_type": "Marriage", "description": "Krys and Jake are Five Oaks founders and parents to Kai and Wes.", "first_meet": "", "key_moments": ["Build Five Oaks together"]},
+    {"id": "jace-susanna", "character_1": "jace", "character_2": "susanna", "relationship_type": "Life partners", "description": "Jace and Susanna build a family together and raise Eli, Cole, Sawyer, Dawson, Jennifer, and Caleb.", "first_meet": "", "key_moments": []},
+    {"id": "luke-emma", "character_1": "luke", "character_2": "emma", "relationship_type": "Marriage", "description": "Luke and Emma are married and are parents to Sami.", "first_meet": "", "key_moments": ["Emma orders Luke an automobile"]},
+    {"id": "kai-paloma", "character_1": "kai", "character_2": "paloma", "relationship_type": "Marriage", "description": "Kai and Paloma make their home in a cabin at Five Oaks.", "first_meet": "", "key_moments": ["Build a cabin beyond the main home"]},
+    {"id": "rhys-olivia", "character_1": "rhys", "character_2": "olivia", "relationship_type": "Marriage", "description": "Rhys and Olivia build a secure family life beyond the old Callahan wounds.", "first_meet": "", "key_moments": []},
+    {"id": "jennifer-waya", "character_1": "jennifer", "character_2": "waya", "relationship_type": "Romantic interest", "description": "Jennifer is drawn to Waya despite insisting that she is not looking for him.", "first_meet": "", "key_moments": ["Jennifer rides to the Patterson property"]},
+    {"id": "jace-eli", "character_1": "jace", "character_2": "eli", "relationship_type": "Father and son", "description": "Eli's return to Five Oaks begins a difficult but meaningful repair of his relationship with Jace.", "first_meet": "", "key_moments": ["Eli returns home"]},
+    {"id": "krys-matt", "character_1": "krys", "character_2": "matt", "relationship_type": "Trusted friendship", "description": "Krys trusts Matt with thoughts she cannot always share with Jake because he does not try to control her decisions.", "first_meet": "", "key_moments": []},
+    {"id": "krys-conrad", "character_1": "krys", "character_2": "conrad", "relationship_type": "Intellectual partnership", "description": "Conrad recognizes Krys's intelligence and offers meaningful work, respect, and partnership.", "first_meet": "", "key_moments": []},
+    {"id": "roger-jace", "character_1": "roger", "character_2": "jace", "relationship_type": "Father and son", "description": "Roger's harsh treatment of Jace creates years of rejection, anger, and resistance to authority.", "first_meet": "", "key_moments": []},
+    {"id": "marie-bob", "character_1": "marie", "character_2": "bob", "relationship_type": "Marriage", "description": "Bob gives Marie a marriage built on mutual respect, affection, laughter, and peace.", "first_meet": "", "key_moments": []},
+    {"id": "eli-whisper", "character_1": "eli", "character_2": "whisper", "relationship_type": "Abusive coercion", "description": "Whisper recruits and abuses Eli; Eli ultimately kills him while protecting Krys.", "first_meet": "", "key_moments": ["Eli kills Whisper after Whisper shoots Krys"]},
+    {"id": "tate-jace", "character_1": "tate", "character_2": "jace", "relationship_type": "Extended family", "description": "Tate is Cole Callahan's partner and part of the Five Oaks family that Jace protects.", "first_meet": "", "key_moments": []}
+  ]
+}
