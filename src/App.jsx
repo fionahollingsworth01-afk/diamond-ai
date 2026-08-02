@@ -3,7 +3,7 @@ import { canonRules, characters, families } from './data/diamondData.js';
 import { bookIndex, bookIndexErrors } from './data/bookIndex.js';
 import { knowledgeIndex, knowledgeIndexErrors } from './data/knowledgeIndex.js';
 import { relationshipGraph } from './data/relationshipGraph.js';
-import { buildAnswer } from './data/answerEngine.js';
+import { guardedAnswer } from './data/canonGuard.js';
 import diamondPortrait from '../DIAMOND.jpg';
 
 const tabs = [
@@ -39,7 +39,7 @@ function App() {
 
   const loadedBooks = bookIndex.filter((book) => (book.sections || []).length > 0);
   const loadedKnowledge = knowledgeIndex.filter((source) => (source.sections || []).length > 0 || source.rawText);
-  const answer = useMemo(() => buildAnswer(question, loadedBooks, loadedKnowledge), [question, loadedBooks, loadedKnowledge]);
+  const answer = useMemo(() => guardedAnswer(question, loadedBooks, loadedKnowledge), [question, loadedBooks, loadedKnowledge]);
   const diamondVoice = useMemo(() => pickFemaleVoice(voices), [voices]);
 
   useEffect(() => {
