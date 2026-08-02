@@ -95,6 +95,11 @@ function factFor(map, value) {
 export function lockedCanonAnswer(question = '') {
   const text = normalize(question);
 
+  if (/^(?:where is|where was|where are|where were) (?:the )?five oaks(?: located)?$/.test(text) ||
+      /^(?:what is|whats) (?:the )?location of (?:the )?five oaks$/.test(text)) {
+    return 'Five Oaks is located in Red Willow Crossing, Missouri.';
+  }
+
   let match = text.match(/^(?:who|what) (?:is|was) (.+)$/);
   if (match) {
     const answer = factFor(identityFacts, match[1]);
