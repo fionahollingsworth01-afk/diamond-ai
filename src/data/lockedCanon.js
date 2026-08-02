@@ -11,6 +11,10 @@ function relationshipKey(first, second) {
   return [normalize(first), normalize(second)].sort().join('|');
 }
 
+function groupKey(names = []) {
+  return names.map(normalize).filter(Boolean).sort().join('|');
+}
+
 const identityFacts = new Map([
   ['tsula', 'Tsula Red Hawk is Waya Red Hawk’s nephew. Waya took responsibility for raising him, and Jennifer became his mother in every way that mattered. Tsula later called Jennifer “Ma.”'],
   ['tsula red hawk', 'Tsula Red Hawk is Waya Red Hawk’s nephew. Waya took responsibility for raising him, and Jennifer became his mother in every way that mattered. Tsula later called Jennifer “Ma.”'],
@@ -70,6 +74,18 @@ const relationshipFacts = new Map([
   [relationshipKey('rhys', 'olivia'), 'Rhys Callahan and Olivia Collins Callahan are husband and wife.'],
 ]);
 
+const groupConnectionFacts = new Map([
+  [groupKey(['jake', 'krys', 'matt']), 'Jake Kincaid and Krys Callahan Kincaid are husband and wife. Matt Haskins is their lifelong friend and fellow founder of Five Oaks.'],
+  [groupKey(['jake kincaid', 'krys callahan kincaid', 'matt haskins']), 'Jake Kincaid and Krys Callahan Kincaid are husband and wife. Matt Haskins is their lifelong friend and fellow founder of Five Oaks.'],
+]);
+
+function parseGroupNames(value = '') {
+  return value
+    .split(/\s*,\s*|\s+and\s+/i)
+    .map((name) => name.trim())
+    .filter(Boolean);
+}
+
 export function lockedCanonAnswer(question = '') {
   const text = normalize(question);
 
@@ -111,10 +127,24 @@ export function lockedCanonAnswer(question = '') {
     }
   }
 
-  match = text.match(/^how (?:are|were) (.+?) and (.+?) related$/);
+  match = text.match(/^how (?:are|were) (.+?) related$/);
   if (match) {
-    const answer = relationshipFacts.get(relationshipKey(match[1], match[2]));
-    if (answer) return answer;
+    const names = parseGroupNames(match[1]);
+    if (names.length === 2) {
+      const answer = relationshipFacts.get(relationshipKey(names[0], names[1]));
+      if (answer) return answer;
+    }
+  }
+
+  match = text.match(/^how (?:are|were) (.+?) connected$/);
+  if (match) {
+    const names = parseGroupNames(match[1]);
+    const groupAnswer = groupConnectionFacts.get(groupKey(names));
+    if (groupAnswer) return groupAnswer;
+    if (names.length === 2) {
+      const answer = relationshipFacts.get(relationshipKey(names[0], names[1]));
+      if (answer) return answer;
+    }
   }
 
   match = text.match(/^what (?:is|was) (.+?)s relationship (?:to|with) (.+)$/);
