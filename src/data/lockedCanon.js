@@ -7,6 +7,10 @@ function normalize(value = '') {
     .trim();
 }
 
+function relationshipKey(first, second) {
+  return [normalize(first), normalize(second)].sort().join('|');
+}
+
 const identityFacts = new Map([
   ['tsula', 'Tsula Red Hawk is Waya Red Hawk’s nephew. Waya took responsibility for raising him, and Jennifer became his mother in every way that mattered. Tsula later called Jennifer “Ma.”'],
   ['tsula red hawk', 'Tsula Red Hawk is Waya Red Hawk’s nephew. Waya took responsibility for raising him, and Jennifer became his mother in every way that mattered. Tsula later called Jennifer “Ma.”'],
@@ -49,6 +53,23 @@ const spouseFacts = new Map([
   ['jennifer callahan', 'Jennifer Callahan is married to Waya Red Hawk.'],
 ]);
 
+const relationshipFacts = new Map([
+  [relationshipKey('krys', 'jace'), 'Krys Callahan Kincaid and Jace Callahan are sister and brother.'],
+  [relationshipKey('krys callahan kincaid', 'jace callahan'), 'Krys Callahan Kincaid and Jace Callahan are sister and brother.'],
+  [relationshipKey('waya', 'tsula'), 'Waya Red Hawk is Tsula Red Hawk’s uncle and guardian. Tsula is Waya’s nephew.'],
+  [relationshipKey('waya red hawk', 'tsula red hawk'), 'Waya Red Hawk is Tsula Red Hawk’s uncle and guardian. Tsula is Waya’s nephew.'],
+  [relationshipKey('jace', 'susanna'), 'Jace Callahan and Susanna Pike were lifelong partners and had six children together, but they never married.'],
+  [relationshipKey('jace callahan', 'susanna pike'), 'Jace Callahan and Susanna Pike were lifelong partners and had six children together, but they never married.'],
+  [relationshipKey('cole', 'tate'), 'Cole Callahan and Tate Hudson are husbands.'],
+  [relationshipKey('cole callahan', 'tate hudson'), 'Cole Callahan and Tate Hudson are husbands.'],
+  [relationshipKey('jennifer', 'waya'), 'Jennifer Callahan and Waya Red Hawk are wife and husband.'],
+  [relationshipKey('jennifer callahan', 'waya red hawk'), 'Jennifer Callahan and Waya Red Hawk are wife and husband.'],
+  [relationshipKey('krys', 'jake'), 'Krys Callahan Kincaid and Jake Kincaid are wife and husband.'],
+  [relationshipKey('kai', 'paloma'), 'Kai Kincaid and Paloma Echevarría Kincaid are husband and wife.'],
+  [relationshipKey('luke', 'emma'), 'Luke Rawlins and Emma Rawlins are husband and wife.'],
+  [relationshipKey('rhys', 'olivia'), 'Rhys Callahan and Olivia Collins Callahan are husband and wife.'],
+]);
+
 export function lockedCanonAnswer(question = '') {
   const text = normalize(question);
 
@@ -70,6 +91,12 @@ export function lockedCanonAnswer(question = '') {
     if (answer) return answer;
   }
 
+  match = text.match(/^did (.+?) (?:ever )?marry$/);
+  if (match) {
+    const answer = spouseFacts.get(match[1]);
+    if (answer) return answer;
+  }
+
   match = text.match(/^who raised (.+)$/);
   if (match) {
     const answer = raisedFacts.get(match[1]);
@@ -82,6 +109,24 @@ export function lockedCanonAnswer(question = '') {
     if (subject === 'waya' || subject === 'waya red hawk') {
       return 'Waya Red Hawk raised his nephew, Tsula Red Hawk.';
     }
+  }
+
+  match = text.match(/^how (?:are|were) (.+?) and (.+?) related$/);
+  if (match) {
+    const answer = relationshipFacts.get(relationshipKey(match[1], match[2]));
+    if (answer) return answer;
+  }
+
+  match = text.match(/^what (?:is|was) (.+?)s relationship (?:to|with) (.+)$/);
+  if (match) {
+    const answer = relationshipFacts.get(relationshipKey(match[1], match[2]));
+    if (answer) return answer;
+  }
+
+  match = text.match(/^(?:are|were) (.+?) and (.+?) related$/);
+  if (match) {
+    const answer = relationshipFacts.get(relationshipKey(match[1], match[2]));
+    if (answer) return answer;
   }
 
   return '';
