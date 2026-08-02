@@ -42,6 +42,15 @@ const knowledge = [
     ],
   },
   {
+    title: 'Echevarria Family',
+    file: 'knowledge/echevarria-family.md',
+    type: 'characters',
+    rawText: 'Paloma Echevarría Kincaid\nRole: Kai’s wife\nFamily:\nDaughter of Mateo and Catalina Echevarría.\nOlder sister of Isabella Echevarría.\nCore Spine:\nPaloma chooses love without surrendering who she is.\nIsabella Echevarría\nRole: Younger daughter • Sister • Member of the extended Five Oaks family\nFamily:\nDaughter of Mateo and Catalina Echevarría.\nYounger sister of Paloma Echevarría Kincaid.\nCore Spine:\nIsabella approaches the world with curiosity and enthusiasm.',
+    sections: [
+      { id: 'isabella', name: 'Isabella', text: 'Isabella\nIsabella approaches the world with curiosity and enthusiasm.' },
+    ],
+  },
+  {
     title: 'Horse Database',
     file: 'horses-database.md',
     type: 'horses',
@@ -67,6 +76,8 @@ assert.match(guardedAnswer('Is Tsula Waya’s nephew?', books, knowledge), /^Yes
 assert.match(guardedAnswer('Who is Tsula?', books, knowledge), /Waya Red Hawk’s nephew/i);
 assert.match(guardedAnswer('Who raised Tsula?', books, knowledge), /Waya Red Hawk raised Tsula/i);
 assert.match(guardedAnswer('Who raised Waya?', books, knowledge), /grandparents/i);
+assert.match(guardedAnswer('Who is Isabella?', books, knowledge), /Daughter of Mateo and Catalina Echevarría/i);
+assert.match(guardedAnswer('Who is Isabella?', books, knowledge), /Younger sister of Paloma Echevarría Kincaid/i);
 assert.match(guardedAnswer('What was Matt’s horse named?', books, knowledge), /Ledger/);
 assert.match(guardedAnswer('Who are Krys’s brothers?', books, knowledge), /Jace.*Rance.*Royce.*Rhys/i);
 assert.match(guardedAnswer('Which book has Jennifer and Waya married?', books, knowledge), /Where the Fire Meets the Sky/);
