@@ -1,3 +1,7 @@
+function clean(value = '') {
+  return String(value).replace(/\r/g, '').replace(/[ \t]+/g, ' ').trim();
+}
+
 function normalize(value = '') {
   return String(value)
     .toLowerCase()
@@ -94,6 +98,7 @@ function factFor(map, value) {
 
 export function lockedCanonAnswer(question = '') {
   const text = normalize(question);
+  const raw = clean(question).replace(/[?!.]+$/g, '').trim();
 
   if (/^(?:where is|where was|where are|where were) (?:the )?five oaks(?: located)?$/.test(text) ||
       /^(?:what is|whats) (?:the )?location of (?:the )?five oaks$/.test(text)) {
@@ -135,7 +140,7 @@ export function lockedCanonAnswer(question = '') {
     return 'Waya Red Hawk raised his nephew, Tsula Red Hawk.';
   }
 
-  match = text.match(/^how (?:are|were) (.+?) (?:related|connected)$/);
+  match = raw.match(/^how\s+(?:are|were)\s+(.+?)\s+(?:related|connected)$/i);
   if (match) {
     const names = parseGroupNames(match[1]);
     const groupAnswer = groupConnectionFacts.get(groupKey(names));
