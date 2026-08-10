@@ -88,7 +88,7 @@ const groupConnectionFacts = new Map([
 function parseGroupNames(value = '') {
   return value
     .split(/\s*,\s*|\s+and\s+/i)
-    .map((name) => name.trim())
+    .map((name) => name.trim().replace(/^and\s+/i, ''))
     .filter(Boolean);
 }
 
